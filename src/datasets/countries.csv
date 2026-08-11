@@ -1,0 +1,214 @@
+code,name,iso3,direct,data_year
+AF,Afghanistan,AFG,131,2024
+AL,Albania,ALB,25,2024
+DZ,Algeria,DZA,633,2024
+AS,American Samoa,ASM,611,2024
+AO,Angola,AGO,185,2024
+AG,Antigua and Barbuda,ATG,595,2024
+AR,Argentina,ARG,346,2025
+AM,Armenia,ARM,212,2025
+AW,Aruba,ABW,550,2024
+AU,Australia,AUS,525,2025
+AT,Austria,AUT,117,2025
+AZ,Azerbaijan,AZE,632,2025
+BS,Bahamas,BHS,653,2024
+BH,Bahrain,BHR,902,2024
+BD,Bangladesh,BGD,696,2025
+BB,Barbados,BRB,595,2024
+BY,Belarus,BLR,309,2025
+BE,Belgium,BEL,150,2025
+BZ,Belize,BLZ,170,2024
+BJ,Benin,BEN,584,2024
+BM,Bermuda,BMU,639,2024
+BT,Bhutan,BTN,24,2024
+BO,"Bolivia, Plurinational State of",BOL,481,2025
+BA,Bosnia and Herzegovina,BIH,571,2025
+BW,Botswana,BWA,851,2024
+BR,Brazil,BRA,110,2025
+BN,Brunei Darussalam,BRN,892,2024
+BG,Bulgaria,BGR,276,2025
+BF,Burkina Faso,BFA,562,2024
+BI,Burundi,BDI,184,2024
+CV,Cabo Verde,CPV,462,2024
+KH,Cambodia,KHM,499,2025
+CM,Cameroon,CMR,226,2024
+CA,Canada,CAN,191,2025
+KY,Cayman Islands,CYM,634,2024
+CF,Central African Republic,CAF,0,2023
+TD,Chad,TCD,622,2024
+CL,Chile,CHL,289,2025
+CN,China,CHN,525,2025
+CO,Colombia,COL,187,2025
+KM,Comoros,COM,643,2023
+CG,Congo,COG,716,2024
+CD,"Congo, Democratic Republic of the",COD,28,2024
+CK,Cook Islands,COK,250,2024
+CR,Costa Rica,CRI,24,2025
+HR,Croatia,HRV,158,2025
+CU,Cuba,CUB,643,2024
+CY,Cyprus,CYP,489,2025
+CZ,Czechia,CZE,401,2025
+CI,Côte d'Ivoire,CIV,405,2024
+DK,Denmark,DNK,114,2025
+DJ,Djibouti,DJI,450,2024
+DM,Dominica,DMA,600,2023
+DO,Dominican Republic,DOM,537,2025
+EC,Ecuador,ECU,159,2025
+EG,Egypt,EGY,563,2025
+SV,El Salvador,SLV,139,2025
+GQ,Equatorial Guinea,GNQ,644,2024
+ER,Eritrea,ERI,578,2024
+EE,Estonia,EST,319,2025
+SZ,Eswatini,SWZ,131,2024
+ET,Ethiopia,ETH,23,2025
+FK,Falkland Islands (Malvinas),FLK,1000,2023
+FO,Faroe Islands,FRO,347,2023
+FJ,Fiji,FJI,278,2024
+FI,Finland,FIN,57,2025
+FR,France,FRA,41,2025
+GF,French Guiana,GUF,245,2023
+PF,French Polynesia,PYF,431,2024
+GA,Gabon,GAB,523,2024
+GM,Gambia,GMB,667,2024
+GE,Georgia,GEO,146,2025
+DE,Germany,DEU,330,2025
+GH,Ghana,GHA,469,2024
+GI,Gibraltar,GIB,591,2024
+GR,Greece,GRC,315,2025
+GL,Greenland,GRL,150,2024
+GD,Grenada,GRD,667,2024
+GP,Guadeloupe,GLP,497,2023
+GU,Guam,GUM,608,2024
+GT,Guatemala,GTM,301,2024
+GN,Guinea,GIN,181,2024
+GW,Guinea-Bissau,GNB,625,2024
+GY,Guyana,GUY,645,2024
+HT,Haiti,HTI,535,2024
+HN,Honduras,HND,322,2024
+HK,Hong Kong,HKG,675,2024
+HU,Hungary,HUN,163,2025
+IS,Iceland,ISL,28,2024
+IN,India,IND,670,2025
+ID,Indonesia,IDN,680,2024
+IR,"Iran, Islamic Republic of",IRN,660,2025
+IQ,Iraq,IRQ,683,2024
+IE,Ireland,IRL,257,2025
+IL,Israel,ISR,493,2025
+IT,Italy,ITA,285,2025
+JM,Jamaica,JAM,563,2024
+JP,Japan,JPN,477,2025
+JO,Jordan,JOR,530,2024
+KZ,Kazakhstan,KAZ,805,2025
+KE,Kenya,KEN,95,2025
+KI,Kiribati,KIR,500,2024
+KP,"Korea, Democratic People's Republic of",PRK,341,2024
+KR,"Korea, Republic of",KOR,417,2025
+KW,Kuwait,KWT,635,2025
+KG,Kyrgyzstan,KGZ,153,2025
+LA,Lao People's Democratic Republic,LAO,232,2024
+LV,Latvia,LVA,139,2025
+LB,Lebanon,LBN,390,2024
+LS,Lesotho,LSO,21,2022
+LR,Liberia,LBR,316,2024
+LY,Libya,LBY,827,2024
+LT,Lithuania,LTU,138,2025
+LU,Luxembourg,LUX,123,2025
+MO,Macao,MAC,474,2024
+MG,Madagascar,MDG,432,2024
+MW,Malawi,MWI,55,2024
+MY,Malaysia,MYS,602,2025
+MV,Maldives,MDV,612,2024
+ML,Mali,MLI,539,2024
+MT,Malta,MLT,484,2025
+MQ,Martinique,MTQ,530,2023
+MR,Mauritania,MRT,512,2024
+MU,Mauritius,MUS,642,2024
+MX,Mexico,MEX,474,2025
+MD,"Moldova, Republic of",MDA,633,2025
+MN,Mongolia,MNG,816,2025
+ME,Montenegro,MNE,264,2025
+MS,Montserrat,MSR,1000,2024
+MA,Morocco,MAR,596,2025
+MZ,Mozambique,MOZ,129,2024
+MM,Myanmar,MMR,503,2024
+NA,Namibia,NAM,49,2024
+NR,Nauru,NRU,600,2024
+NP,Nepal,NPL,24,2024
+NL,"Netherlands, Kingdom of the",NLD,254,2025
+NC,New Caledonia,NCL,561,2024
+NZ,New Zealand,NZL,93,2025
+NI,Nicaragua,NIC,301,2024
+NE,Niger,NER,674,2024
+NG,Nigeria,NGA,456,2025
+MK,North Macedonia,MKD,441,2025
+NO,Norway,NOR,28,2025
+OM,Oman,OMN,544,2025
+PK,Pakistan,PAK,347,2025
+PS,"Palestine, State of",PSE,414,2024
+PA,Panama,PAN,221,2024
+PG,Papua New Guinea,PNG,514,2024
+PY,Paraguay,PRY,25,2025
+PE,Peru,PER,238,2025
+PH,Philippines,PHL,588,2025
+PL,Poland,POL,589,2025
+PT,Portugal,PRT,128,2025
+PR,Puerto Rico,PRI,655,2025
+QA,Qatar,QAT,582,2025
+RO,Romania,ROU,251,2025
+RU,Russian Federation,RUS,450,2025
+RW,Rwanda,RWA,354,2024
+RE,Réunion,REU,394,2023
+SH,"Saint Helena, Ascension and Tristan da Cunha",SHN,1000,2023
+KN,Saint Kitts and Nevis,KNA,609,2024
+LC,Saint Lucia,LCA,650,2024
+PM,Saint Pierre and Miquelon,SPM,600,2023
+VC,Saint Vincent and the Grenadines,VCT,600,2024
+WS,Samoa,WSM,375,2024
+ST,Sao Tome and Principe,STP,556,2023
+SA,Saudi Arabia,SAU,692,2024
+SN,Senegal,SEN,540,2024
+RS,Serbia,SRB,696,2025
+SC,Seychelles,SYC,556,2024
+SL,Sierra Leone,SLE,48,2024
+SG,Singapore,SGP,497,2025
+SK,Slovakia,SVK,95,2025
+SI,Slovenia,SVN,183,2025
+SB,Solomon Islands,SLB,636,2024
+SO,Somalia,SOM,512,2024
+ZA,South Africa,ZAF,699,2025
+SS,South Sudan,SSD,643,2024
+ES,Spain,ESP,154,2025
+LK,Sri Lanka,LKA,329,2025
+SD,Sudan,SDN,154,2024
+SR,Suriname,SUR,322,2024
+SE,Sweden,SWE,35,2025
+CH,Switzerland,CHE,39,2025
+SY,Syrian Arab Republic,SYR,706,2024
+TW,"Taiwan, Province of China",TWN,633,2025
+TJ,Tajikistan,TJK,73,2025
+TZ,"Tanzania, United Republic of",TZA,345,2024
+TH,Thailand,THA,546,2025
+TL,Timor-Leste,TLS,667,2024
+TG,Togo,TGO,423,2024
+TO,Tonga,TON,571,2024
+TT,Trinidad and Tobago,TTO,682,2024
+TN,Tunisia,TUN,560,2025
+TM,Turkmenistan,TKM,1306,2024
+TC,Turks and Caicos Islands,TCA,630,2024
+TR,Türkiye,TUR,475,2025
+UG,Uganda,UGA,59,2024
+UA,Ukraine,UKR,250,2022
+AE,United Arab Emirates,ARE,468,2024
+GB,United Kingdom of Great Britain and Northern Ireland,GBR,217,2025
+US,United States of America,USA,384,2025
+UY,Uruguay,URY,80,2025
+UZ,Uzbekistan,UZB,1000,2025
+VU,Vanuatu,VUT,500,2023
+VE,"Venezuela, Bolivarian Republic of",VEN,86,2024
+VN,Viet Nam,VNM,461,2025
+VG,Virgin Islands (British),VGB,647,2023
+VI,Virgin Islands (U.S.),VIR,632,2023
+EH,Western Sahara,ESH,667,2009
+YE,Yemen,YEM,592,2024
+ZM,Zambia,ZMB,120,2024
+ZW,Zimbabwe,ZWE,384,2024

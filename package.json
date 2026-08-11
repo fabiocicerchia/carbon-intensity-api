@@ -1,0 +1,22 @@
+{
+  "name": "carbon-intensity-api",
+  "version": "2.0.0",
+  "description": "Last-hour grid carbon intensity (gCO2eq/kWh) by country — static JSON served from an S3-compatible bucket, with a Node server for self-hosting",
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "author": "Fabio Cicerchia",
+  "exports": "./src/handler.js",
+  "files": ["src", "bin", "server.js", "sync.sh", "!src/datasets/*.csv"],
+  "bin": {
+    "carbon-intensity-pipeline": "bin/pipeline.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "pipeline": "node bin/pipeline.js --out data",
+    "pipeline:offline": "node bin/pipeline.js --out data --no-live",
+    "serve": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

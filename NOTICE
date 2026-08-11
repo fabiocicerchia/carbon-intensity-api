@@ -1,0 +1,48 @@
+carbon-intensity-api
+Copyright 2026 Fabio Cicerchia
+
+This product includes data and methodology derived from third-party sources.
+Attribution is retained here as required by their terms; these notices are
+informational and do not modify the AGPL-3.0 License.
+
+- Annual operational carbon-intensity figures (src/datasets/countries.csv)
+  are derived from the "Our World in Data" energy dataset
+  (https://github.com/owid/energy-data), field `carbon_intensity_elec`, which
+  compiles Ember and the Energy Institute Statistical Review of World Energy.
+  Licensed under Creative Commons BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
+
+- The per-country real-time data-source catalogue (src/datasets/sources.csv)
+  is compiled from factual information (operator names and reference URLs); the
+  Electricity Maps community's electricitymaps-contrib DATA_SOURCES.md
+  (https://github.com/electricitymaps/electricitymaps-contrib) was used to
+  cross-check coverage, and is credited here.
+
+- Real-time generation data is obtained from the operators and platforms named
+  in each response's `data_source`. The carbon-intensity figures published here
+  are COMPUTED BY THIS PROJECT from that generation data using the emission
+  factors in src/factors.js; they are not published by, endorsed by, or
+  attributable to those operators. In particular:
+
+  * U.S. Energy Information Administration (EIA) — accessed via the EIA API
+    under its Terms of Service. EIA is identified as the source of the
+    underlying generation data only. Nothing here implies EIA endorsement of
+    this project, and the EIA logo is not used.
+
+  * ENTSO-E Transparency Platform — data listed as open for re-use is available
+    under the Creative Commons Attribution 4.0 International licence
+    (https://creativecommons.org/licenses/by/4.0/). Attribution: © ENTSO-E
+    Transparency Platform. The figures here are an adaptation: hourly
+    generation per production type is weighted by emission factors to derive an
+    intensity, so the values differ from anything ENTSO-E publishes.
+
+- Fuel-code mappings (src/factors.js) are derived from each data source's own
+  published taxonomy — ENTSO-E PSR codes, EIA fuel-type codes, OpenElectricity
+  fueltechs, Eskom's column glossary, and the Spanish/Portuguese fuel names used
+  by CENACE/ONS — so the computed values are independent.
+
+- Lifecycle emission factors follow IPCC AR6, WG III (2022), Annex III.
+
+- Real-time readings, when enabled, are fetched from the respective grid
+  operators / market data providers named in each country's `data_source`
+  (e.g. ENTSO-E, EIA, NESO/Elexon, ONS, OpenNEM/OpenElectricity, EMC Singapore,
+  Eskom). Those data remain subject to their publishers' own terms.

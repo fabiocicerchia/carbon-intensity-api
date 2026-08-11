@@ -1,0 +1,1493 @@
+{
+  "AE": {
+    "name": "GCCIA",
+    "url": "https://www.gccia.com.sa/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "AF": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "AG": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "AL": {
+    "name": "OST (Albanian TSO)",
+    "url": "https://www.ost.al/te-dhena",
+    "realtime": true,
+    "status": "proposed",
+    "ref": "https://github.com/electricitymaps/electricitymaps-contrib/issues/4180"
+  },
+  "AM": {
+    "name": "Armenian Energy Power System Operator",
+    "url": "http://epso.am/poweren.htm",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "AO": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "AR": {
+    "name": "Cammesa",
+    "url": "http://portalweb.cammesa.com/Memnet1/default.aspx",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "AS": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "AT": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "AU": {
+    "name": "OpenNEM",
+    "url": "https://opennem.org.au/energy/nem/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "AW": {
+    "name": "WEB Aruba",
+    "url": "https://www.webaruba.com/renewable-energy-dashboard/aruba",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "AZ": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "BA": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "BB": {
+    "name": "Acelerex (energy.gov.bb)",
+    "url": "https://dataservices.acelerex.com/barbados/grid-operation/generation/current",
+    "realtime": true,
+    "status": "proposed",
+    "ref": "https://github.com/electricitymaps/electricitymaps-contrib/issues/6459"
+  },
+  "BD": {
+    "name": "PGCB",
+    "url": "https://erp.pgcb.gov.bd/web/generations/view_generations",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "BE": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "BF": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "BG": {
+    "name": "TSO",
+    "url": "http://tso.bg/default.aspx/page-707/bg",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "BH": {
+    "name": "GCCIA",
+    "url": "https://www.gccia.com.sa/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "BI": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "BJ": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "BM": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "BN": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "BO": {
+    "name": "CNDC",
+    "url": "http://www.cndc.bo/media/archivos/graf/gene_hora/gweb_despdia_genera.php",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "BR": {
+    "name": "ONS",
+    "url": "http://www.ons.org.br/paginas/energia-agora/carga-e-geracao",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "BS": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "BT": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "BW": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "BY": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "BZ": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "CA": {
+    "name": "AESO",
+    "url": "http://ets.aeso.ca/ets_web/ip/Market/Reports/CSDReportServlet",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "CD": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "CF": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "CG": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "CH": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "CI": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "CK": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "CL": {
+    "name": "Coordinador",
+    "url": "https://sipub.coordinador.cl/api/v1/recursos/generacion_centrales_tecnologia_horario?",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "CM": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "CN": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "CO": {
+    "name": "XM",
+    "url": "https://www.xm.com.co/consumo/demanda-en-tiempo-real",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "CR": {
+    "name": "ICE",
+    "url": "https://apps.grupoice.com/CenceWeb/data/sen/json/EnergiaHorariaFuentePlanta?anno=2022&mes=12&dia=27",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "CU": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "CV": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "CY": {
+    "name": "TSO",
+    "url": "https://tsoc.org.cy/electrical-system/total-daily-system-generation-on-the-transmission-system/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "CZ": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "DE": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "DJ": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "DK": {
+    "name": "TSO",
+    "url": "https://www.energidataservice.dk/groups/production-and-consumption",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "DM": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "DO": {
+    "name": "OC",
+    "url": "http://www.oc.org.do/Reportes/postdespacho.aspx",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "DZ": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "EC": {
+    "name": "CENACE",
+    "url": "https://www.cenace.gob.ec/info-operativa/InformacionOperativa.htm",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "EE": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "EG": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "EH": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "ER": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "ES": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "ET": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "FI": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "FJ": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "FK": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "FO": {
+    "name": "Fjarhiti",
+    "url": "https://www.fjarhiti.fo/kunning/biogassverki%C3%B0-roynist-vael-%C3%AD-fjarhitaskipanini/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "FR": {
+    "name": "RTE",
+    "url": "https://opendata.reseaux-energies.fr",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "GA": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "GB": {
+    "name": "Elexon BMRS",
+    "url": "https://bscdocs.elexon.co.uk/guidance-notes/bmrs-api-and-data-push-user-guide",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "GD": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "GE": {
+    "name": "Georgian State Electrosystem (GSE)",
+    "url": "http://www.gse.com.ge/home",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "GF": {
+    "name": "EDF SEI",
+    "url": "https://opendata-guyane.edf.fr",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "GH": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "GI": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "GL": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "GM": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "GN": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "GP": {
+    "name": "EDF SEI",
+    "url": "https://opendata-guadeloupe.edf.fr",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "GQ": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "GR": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "GT": {
+    "name": "AMM",
+    "url": "http://www.amm.org.gt",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "GU": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "GW": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "GY": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "HK": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "HN": {
+    "name": "ENTE",
+    "url": "https://www.enteoperador.org/flujos-regionales-en-tiempo-real/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "HR": {
+    "name": "HOPS",
+    "url": "https://www.hops.hr/wps/portal/hr/web",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "HT": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "HU": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "ID": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "IE": {
+    "name": "Eirgrid",
+    "url": "https://www.smartgriddashboard.com/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "IL": {
+    "name": "IEC",
+    "url": "https://www.iec.co.il/en/pages/default.aspx",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "IN": {
+    "name": "meritindia",
+    "url": "http://meritindia.in/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "IQ": {
+    "name": "Iraqi Power System",
+    "url": "https://www.gdoco.org/generation.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "IR": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "IS": {
+    "name": "LANDSNET",
+    "url": "https://amper.landsnet.is/generation/api/Values",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "IT": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "JM": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "JO": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "JP": {
+    "name": "OCCTO",
+    "url": "http://occtonet.occto.or.jp/public/dfw/RP11/OCCTO/SD/LOGIN_login",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "KE": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "KG": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "KH": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "KI": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "KM": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "KN": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "KP": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "KR": {
+    "name": "KHNP",
+    "url": "http://cms.khnp.co.kr/eng/kori/realTimeMgr/list.do?mnCd=EN03020201&brnchCd=BR0302",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "KW": {
+    "name": "Ministry of Electricity & Water",
+    "url": "https://www.mew.gov.kw/en/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "KY": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "KZ": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "LA": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "LB": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "LC": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "LK": {
+    "name": "Ceylon Electricity Board",
+    "url": "https://cebcare.ceb.lk/gensum/details",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "LR": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "LS": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "LT": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "LU": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "LV": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "LY": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "MA": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "MD": {
+    "name": "MoldElectrica",
+    "url": "http://www.moldelectrica.md/ro/activity/system_state",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "ME": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "MG": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "MK": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "ML": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "MM": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "MN": {
+    "name": "NDC (National Dispatching Center)",
+    "url": "https://ndc.energy.mn/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "MO": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "MQ": {
+    "name": "EDF SEI",
+    "url": "https://opendata-martinique.edf.fr",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "MR": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "MS": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "MT": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "MU": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "MV": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "MW": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "MX": {
+    "name": "CENACE",
+    "url": "https://www.cenace.gob.mx/GraficaDemanda.aspx",
+    "realtime": false,
+    "status": "none",
+    "ref": "https://github.com/electricitymaps/electricitymaps-contrib/issues/6566"
+  },
+  "MY": {
+    "name": "GSO",
+    "url": "https://www.gso.org.my/LandingPage.aspx",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "MZ": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "NA": {
+    "name": "NamPower",
+    "url": "http://www.nampower.com.na/Scada.aspx",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "NC": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "NE": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "NG": {
+    "name": "TCN ISO grid data portal",
+    "url": "https://www.niggrid.com/GenerationProfile",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "NI": {
+    "name": "CNDC",
+    "url": "http://www.cndc.org.ni/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "NL": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "NO": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "NP": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "NR": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "NZ": {
+    "name": "Transpower",
+    "url": "https://www.transpower.co.nz/power-system-live-data",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "OM": {
+    "name": "GCCIA",
+    "url": "https://www.gccia.com.sa/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "PA": {
+    "name": "CND",
+    "url": "http://sitr.cnd.com.pa/m/pub/gen.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "PE": {
+    "name": "COES",
+    "url": "http://www.coes.org.pe/Portal/portalinformacion/Generacion",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "PF": {
+    "name": "EDT",
+    "url": "https://www.edt.pf/transition-energetique-innovation",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "PG": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "PH": {
+    "name": "IEMOP",
+    "url": "https://www.iemop.ph/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "PK": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "PL": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "PM": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "PR": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "PS": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "PT": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "PY": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "QA": {
+    "name": "GCCIA",
+    "url": "https://www.gccia.com.sa/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "RE": {
+    "name": "EDF SEI",
+    "url": "https://opendata-reunion.edf.fr",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "RO": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "RS": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "RU": {
+    "name": "SO-UPS",
+    "url": "http://br.so-ups.ru/Public/MainPageData/BR/PowerGeneration.aspx",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "RW": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "SA": {
+    "name": "GCCIA",
+    "url": "https://www.gccia.com.sa/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "SB": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "SC": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "SD": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "SE": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "SG": {
+    "name": "EMC",
+    "url": "https://www.emcsg.com",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "SH": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "SI": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "SK": {
+    "name": "ENTSOE",
+    "url": "https://transparency.entsoe.eu/content/static_content/Static%20content/web%20api/Guide.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "SL": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "SN": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "SO": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "SR": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "SS": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "ST": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "SV": {
+    "name": "Unidad de Transacciones",
+    "url": "http://estadistico.ut.com.sv/OperacionDiaria.aspx",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "SY": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "SZ": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "TC": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "TD": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "TG": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "TH": {
+    "name": "EGAT",
+    "url": "https://www.sothailand.com/sysgen/egat/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "TJ": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "TL": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "TM": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "TN": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "TO": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "TR": {
+    "name": "ytbs",
+    "url": "https://ytbsbilgi.teias.gov.tr/ytbsbilgi/frm_istatistikler.jsf",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "TT": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "TW": {
+    "name": "TAIPOWER",
+    "url": "http://www.taipower.com.tw/d006/loadGraph/loadGraph/genshx_.html",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "TZ": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "UA": {
+    "name": "UKRENERGO",
+    "url": "https://ua.energy/activity/dispatch-information/ues-operation/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "UG": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "US": {
+    "name": "EIA",
+    "url": "https://www.eia.gov/electricity/data.cfm#gencapacity",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "UY": {
+    "name": "UTE",
+    "url": "https://apps.ute.com.uy/SgePublico/ConsPotenciaGeneracionArbolXFuente.aspx",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "UZ": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "VC": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "VE": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "VG": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "VI": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "VN": {
+    "name": "EVN",
+    "url": "https://www.nldc.evn.vn/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "VU": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "WS": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "YE": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "ZA": {
+    "name": "Eskom",
+    "url": "https://www.eskom.co.za/dataportal/supply-side/station-build-up-for-the-last-7-days/",
+    "realtime": true,
+    "status": "operational",
+    "ref": null
+  },
+  "ZM": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  },
+  "ZW": {
+    "name": null,
+    "url": null,
+    "realtime": false,
+    "status": "none",
+    "ref": null
+  }
+}

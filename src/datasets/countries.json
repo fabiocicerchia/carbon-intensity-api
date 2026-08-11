@@ -1,0 +1,1493 @@
+[
+{
+"code": "AF",
+"name": "Afghanistan",
+"iso3": "AFG",
+"direct": 131,
+"data_year": 2024
+},
+{
+"code": "AL",
+"name": "Albania",
+"iso3": "ALB",
+"direct": 25,
+"data_year": 2024
+},
+{
+"code": "DZ",
+"name": "Algeria",
+"iso3": "DZA",
+"direct": 633,
+"data_year": 2024
+},
+{
+"code": "AS",
+"name": "American Samoa",
+"iso3": "ASM",
+"direct": 611,
+"data_year": 2024
+},
+{
+"code": "AO",
+"name": "Angola",
+"iso3": "AGO",
+"direct": 185,
+"data_year": 2024
+},
+{
+"code": "AG",
+"name": "Antigua and Barbuda",
+"iso3": "ATG",
+"direct": 595,
+"data_year": 2024
+},
+{
+"code": "AR",
+"name": "Argentina",
+"iso3": "ARG",
+"direct": 346,
+"data_year": 2025
+},
+{
+"code": "AM",
+"name": "Armenia",
+"iso3": "ARM",
+"direct": 212,
+"data_year": 2025
+},
+{
+"code": "AW",
+"name": "Aruba",
+"iso3": "ABW",
+"direct": 550,
+"data_year": 2024
+},
+{
+"code": "AU",
+"name": "Australia",
+"iso3": "AUS",
+"direct": 525,
+"data_year": 2025
+},
+{
+"code": "AT",
+"name": "Austria",
+"iso3": "AUT",
+"direct": 117,
+"data_year": 2025
+},
+{
+"code": "AZ",
+"name": "Azerbaijan",
+"iso3": "AZE",
+"direct": 632,
+"data_year": 2025
+},
+{
+"code": "BS",
+"name": "Bahamas",
+"iso3": "BHS",
+"direct": 653,
+"data_year": 2024
+},
+{
+"code": "BH",
+"name": "Bahrain",
+"iso3": "BHR",
+"direct": 902,
+"data_year": 2024
+},
+{
+"code": "BD",
+"name": "Bangladesh",
+"iso3": "BGD",
+"direct": 696,
+"data_year": 2025
+},
+{
+"code": "BB",
+"name": "Barbados",
+"iso3": "BRB",
+"direct": 595,
+"data_year": 2024
+},
+{
+"code": "BY",
+"name": "Belarus",
+"iso3": "BLR",
+"direct": 309,
+"data_year": 2025
+},
+{
+"code": "BE",
+"name": "Belgium",
+"iso3": "BEL",
+"direct": 150,
+"data_year": 2025
+},
+{
+"code": "BZ",
+"name": "Belize",
+"iso3": "BLZ",
+"direct": 170,
+"data_year": 2024
+},
+{
+"code": "BJ",
+"name": "Benin",
+"iso3": "BEN",
+"direct": 584,
+"data_year": 2024
+},
+{
+"code": "BM",
+"name": "Bermuda",
+"iso3": "BMU",
+"direct": 639,
+"data_year": 2024
+},
+{
+"code": "BT",
+"name": "Bhutan",
+"iso3": "BTN",
+"direct": 24,
+"data_year": 2024
+},
+{
+"code": "BO",
+"name": "Bolivia, Plurinational State of",
+"iso3": "BOL",
+"direct": 481,
+"data_year": 2025
+},
+{
+"code": "BA",
+"name": "Bosnia and Herzegovina",
+"iso3": "BIH",
+"direct": 571,
+"data_year": 2025
+},
+{
+"code": "BW",
+"name": "Botswana",
+"iso3": "BWA",
+"direct": 851,
+"data_year": 2024
+},
+{
+"code": "BR",
+"name": "Brazil",
+"iso3": "BRA",
+"direct": 110,
+"data_year": 2025
+},
+{
+"code": "BN",
+"name": "Brunei Darussalam",
+"iso3": "BRN",
+"direct": 892,
+"data_year": 2024
+},
+{
+"code": "BG",
+"name": "Bulgaria",
+"iso3": "BGR",
+"direct": 276,
+"data_year": 2025
+},
+{
+"code": "BF",
+"name": "Burkina Faso",
+"iso3": "BFA",
+"direct": 562,
+"data_year": 2024
+},
+{
+"code": "BI",
+"name": "Burundi",
+"iso3": "BDI",
+"direct": 184,
+"data_year": 2024
+},
+{
+"code": "CV",
+"name": "Cabo Verde",
+"iso3": "CPV",
+"direct": 462,
+"data_year": 2024
+},
+{
+"code": "KH",
+"name": "Cambodia",
+"iso3": "KHM",
+"direct": 499,
+"data_year": 2025
+},
+{
+"code": "CM",
+"name": "Cameroon",
+"iso3": "CMR",
+"direct": 226,
+"data_year": 2024
+},
+{
+"code": "CA",
+"name": "Canada",
+"iso3": "CAN",
+"direct": 191,
+"data_year": 2025
+},
+{
+"code": "KY",
+"name": "Cayman Islands",
+"iso3": "CYM",
+"direct": 634,
+"data_year": 2024
+},
+{
+"code": "CF",
+"name": "Central African Republic",
+"iso3": "CAF",
+"direct": 0,
+"data_year": 2023
+},
+{
+"code": "TD",
+"name": "Chad",
+"iso3": "TCD",
+"direct": 622,
+"data_year": 2024
+},
+{
+"code": "CL",
+"name": "Chile",
+"iso3": "CHL",
+"direct": 289,
+"data_year": 2025
+},
+{
+"code": "CN",
+"name": "China",
+"iso3": "CHN",
+"direct": 525,
+"data_year": 2025
+},
+{
+"code": "CO",
+"name": "Colombia",
+"iso3": "COL",
+"direct": 187,
+"data_year": 2025
+},
+{
+"code": "KM",
+"name": "Comoros",
+"iso3": "COM",
+"direct": 643,
+"data_year": 2023
+},
+{
+"code": "CG",
+"name": "Congo",
+"iso3": "COG",
+"direct": 716,
+"data_year": 2024
+},
+{
+"code": "CD",
+"name": "Congo, Democratic Republic of the",
+"iso3": "COD",
+"direct": 28,
+"data_year": 2024
+},
+{
+"code": "CK",
+"name": "Cook Islands",
+"iso3": "COK",
+"direct": 250,
+"data_year": 2024
+},
+{
+"code": "CR",
+"name": "Costa Rica",
+"iso3": "CRI",
+"direct": 24,
+"data_year": 2025
+},
+{
+"code": "HR",
+"name": "Croatia",
+"iso3": "HRV",
+"direct": 158,
+"data_year": 2025
+},
+{
+"code": "CU",
+"name": "Cuba",
+"iso3": "CUB",
+"direct": 643,
+"data_year": 2024
+},
+{
+"code": "CY",
+"name": "Cyprus",
+"iso3": "CYP",
+"direct": 489,
+"data_year": 2025
+},
+{
+"code": "CZ",
+"name": "Czechia",
+"iso3": "CZE",
+"direct": 401,
+"data_year": 2025
+},
+{
+"code": "CI",
+"name": "Côte d'Ivoire",
+"iso3": "CIV",
+"direct": 405,
+"data_year": 2024
+},
+{
+"code": "DK",
+"name": "Denmark",
+"iso3": "DNK",
+"direct": 114,
+"data_year": 2025
+},
+{
+"code": "DJ",
+"name": "Djibouti",
+"iso3": "DJI",
+"direct": 450,
+"data_year": 2024
+},
+{
+"code": "DM",
+"name": "Dominica",
+"iso3": "DMA",
+"direct": 600,
+"data_year": 2023
+},
+{
+"code": "DO",
+"name": "Dominican Republic",
+"iso3": "DOM",
+"direct": 537,
+"data_year": 2025
+},
+{
+"code": "EC",
+"name": "Ecuador",
+"iso3": "ECU",
+"direct": 159,
+"data_year": 2025
+},
+{
+"code": "EG",
+"name": "Egypt",
+"iso3": "EGY",
+"direct": 563,
+"data_year": 2025
+},
+{
+"code": "SV",
+"name": "El Salvador",
+"iso3": "SLV",
+"direct": 139,
+"data_year": 2025
+},
+{
+"code": "GQ",
+"name": "Equatorial Guinea",
+"iso3": "GNQ",
+"direct": 644,
+"data_year": 2024
+},
+{
+"code": "ER",
+"name": "Eritrea",
+"iso3": "ERI",
+"direct": 578,
+"data_year": 2024
+},
+{
+"code": "EE",
+"name": "Estonia",
+"iso3": "EST",
+"direct": 319,
+"data_year": 2025
+},
+{
+"code": "SZ",
+"name": "Eswatini",
+"iso3": "SWZ",
+"direct": 131,
+"data_year": 2024
+},
+{
+"code": "ET",
+"name": "Ethiopia",
+"iso3": "ETH",
+"direct": 23,
+"data_year": 2025
+},
+{
+"code": "FK",
+"name": "Falkland Islands (Malvinas)",
+"iso3": "FLK",
+"direct": 1000,
+"data_year": 2023
+},
+{
+"code": "FO",
+"name": "Faroe Islands",
+"iso3": "FRO",
+"direct": 347,
+"data_year": 2023
+},
+{
+"code": "FJ",
+"name": "Fiji",
+"iso3": "FJI",
+"direct": 278,
+"data_year": 2024
+},
+{
+"code": "FI",
+"name": "Finland",
+"iso3": "FIN",
+"direct": 57,
+"data_year": 2025
+},
+{
+"code": "FR",
+"name": "France",
+"iso3": "FRA",
+"direct": 41,
+"data_year": 2025
+},
+{
+"code": "GF",
+"name": "French Guiana",
+"iso3": "GUF",
+"direct": 245,
+"data_year": 2023
+},
+{
+"code": "PF",
+"name": "French Polynesia",
+"iso3": "PYF",
+"direct": 431,
+"data_year": 2024
+},
+{
+"code": "GA",
+"name": "Gabon",
+"iso3": "GAB",
+"direct": 523,
+"data_year": 2024
+},
+{
+"code": "GM",
+"name": "Gambia",
+"iso3": "GMB",
+"direct": 667,
+"data_year": 2024
+},
+{
+"code": "GE",
+"name": "Georgia",
+"iso3": "GEO",
+"direct": 146,
+"data_year": 2025
+},
+{
+"code": "DE",
+"name": "Germany",
+"iso3": "DEU",
+"direct": 330,
+"data_year": 2025
+},
+{
+"code": "GH",
+"name": "Ghana",
+"iso3": "GHA",
+"direct": 469,
+"data_year": 2024
+},
+{
+"code": "GI",
+"name": "Gibraltar",
+"iso3": "GIB",
+"direct": 591,
+"data_year": 2024
+},
+{
+"code": "GR",
+"name": "Greece",
+"iso3": "GRC",
+"direct": 315,
+"data_year": 2025
+},
+{
+"code": "GL",
+"name": "Greenland",
+"iso3": "GRL",
+"direct": 150,
+"data_year": 2024
+},
+{
+"code": "GD",
+"name": "Grenada",
+"iso3": "GRD",
+"direct": 667,
+"data_year": 2024
+},
+{
+"code": "GP",
+"name": "Guadeloupe",
+"iso3": "GLP",
+"direct": 497,
+"data_year": 2023
+},
+{
+"code": "GU",
+"name": "Guam",
+"iso3": "GUM",
+"direct": 608,
+"data_year": 2024
+},
+{
+"code": "GT",
+"name": "Guatemala",
+"iso3": "GTM",
+"direct": 301,
+"data_year": 2024
+},
+{
+"code": "GN",
+"name": "Guinea",
+"iso3": "GIN",
+"direct": 181,
+"data_year": 2024
+},
+{
+"code": "GW",
+"name": "Guinea-Bissau",
+"iso3": "GNB",
+"direct": 625,
+"data_year": 2024
+},
+{
+"code": "GY",
+"name": "Guyana",
+"iso3": "GUY",
+"direct": 645,
+"data_year": 2024
+},
+{
+"code": "HT",
+"name": "Haiti",
+"iso3": "HTI",
+"direct": 535,
+"data_year": 2024
+},
+{
+"code": "HN",
+"name": "Honduras",
+"iso3": "HND",
+"direct": 322,
+"data_year": 2024
+},
+{
+"code": "HK",
+"name": "Hong Kong",
+"iso3": "HKG",
+"direct": 675,
+"data_year": 2024
+},
+{
+"code": "HU",
+"name": "Hungary",
+"iso3": "HUN",
+"direct": 163,
+"data_year": 2025
+},
+{
+"code": "IS",
+"name": "Iceland",
+"iso3": "ISL",
+"direct": 28,
+"data_year": 2024
+},
+{
+"code": "IN",
+"name": "India",
+"iso3": "IND",
+"direct": 670,
+"data_year": 2025
+},
+{
+"code": "ID",
+"name": "Indonesia",
+"iso3": "IDN",
+"direct": 680,
+"data_year": 2024
+},
+{
+"code": "IR",
+"name": "Iran, Islamic Republic of",
+"iso3": "IRN",
+"direct": 660,
+"data_year": 2025
+},
+{
+"code": "IQ",
+"name": "Iraq",
+"iso3": "IRQ",
+"direct": 683,
+"data_year": 2024
+},
+{
+"code": "IE",
+"name": "Ireland",
+"iso3": "IRL",
+"direct": 257,
+"data_year": 2025
+},
+{
+"code": "IL",
+"name": "Israel",
+"iso3": "ISR",
+"direct": 493,
+"data_year": 2025
+},
+{
+"code": "IT",
+"name": "Italy",
+"iso3": "ITA",
+"direct": 285,
+"data_year": 2025
+},
+{
+"code": "JM",
+"name": "Jamaica",
+"iso3": "JAM",
+"direct": 563,
+"data_year": 2024
+},
+{
+"code": "JP",
+"name": "Japan",
+"iso3": "JPN",
+"direct": 477,
+"data_year": 2025
+},
+{
+"code": "JO",
+"name": "Jordan",
+"iso3": "JOR",
+"direct": 530,
+"data_year": 2024
+},
+{
+"code": "KZ",
+"name": "Kazakhstan",
+"iso3": "KAZ",
+"direct": 805,
+"data_year": 2025
+},
+{
+"code": "KE",
+"name": "Kenya",
+"iso3": "KEN",
+"direct": 95,
+"data_year": 2025
+},
+{
+"code": "KI",
+"name": "Kiribati",
+"iso3": "KIR",
+"direct": 500,
+"data_year": 2024
+},
+{
+"code": "KP",
+"name": "Korea, Democratic People's Republic of",
+"iso3": "PRK",
+"direct": 341,
+"data_year": 2024
+},
+{
+"code": "KR",
+"name": "Korea, Republic of",
+"iso3": "KOR",
+"direct": 417,
+"data_year": 2025
+},
+{
+"code": "KW",
+"name": "Kuwait",
+"iso3": "KWT",
+"direct": 635,
+"data_year": 2025
+},
+{
+"code": "KG",
+"name": "Kyrgyzstan",
+"iso3": "KGZ",
+"direct": 153,
+"data_year": 2025
+},
+{
+"code": "LA",
+"name": "Lao People's Democratic Republic",
+"iso3": "LAO",
+"direct": 232,
+"data_year": 2024
+},
+{
+"code": "LV",
+"name": "Latvia",
+"iso3": "LVA",
+"direct": 139,
+"data_year": 2025
+},
+{
+"code": "LB",
+"name": "Lebanon",
+"iso3": "LBN",
+"direct": 390,
+"data_year": 2024
+},
+{
+"code": "LS",
+"name": "Lesotho",
+"iso3": "LSO",
+"direct": 21,
+"data_year": 2022
+},
+{
+"code": "LR",
+"name": "Liberia",
+"iso3": "LBR",
+"direct": 316,
+"data_year": 2024
+},
+{
+"code": "LY",
+"name": "Libya",
+"iso3": "LBY",
+"direct": 827,
+"data_year": 2024
+},
+{
+"code": "LT",
+"name": "Lithuania",
+"iso3": "LTU",
+"direct": 138,
+"data_year": 2025
+},
+{
+"code": "LU",
+"name": "Luxembourg",
+"iso3": "LUX",
+"direct": 123,
+"data_year": 2025
+},
+{
+"code": "MO",
+"name": "Macao",
+"iso3": "MAC",
+"direct": 474,
+"data_year": 2024
+},
+{
+"code": "MG",
+"name": "Madagascar",
+"iso3": "MDG",
+"direct": 432,
+"data_year": 2024
+},
+{
+"code": "MW",
+"name": "Malawi",
+"iso3": "MWI",
+"direct": 55,
+"data_year": 2024
+},
+{
+"code": "MY",
+"name": "Malaysia",
+"iso3": "MYS",
+"direct": 602,
+"data_year": 2025
+},
+{
+"code": "MV",
+"name": "Maldives",
+"iso3": "MDV",
+"direct": 612,
+"data_year": 2024
+},
+{
+"code": "ML",
+"name": "Mali",
+"iso3": "MLI",
+"direct": 539,
+"data_year": 2024
+},
+{
+"code": "MT",
+"name": "Malta",
+"iso3": "MLT",
+"direct": 484,
+"data_year": 2025
+},
+{
+"code": "MQ",
+"name": "Martinique",
+"iso3": "MTQ",
+"direct": 530,
+"data_year": 2023
+},
+{
+"code": "MR",
+"name": "Mauritania",
+"iso3": "MRT",
+"direct": 512,
+"data_year": 2024
+},
+{
+"code": "MU",
+"name": "Mauritius",
+"iso3": "MUS",
+"direct": 642,
+"data_year": 2024
+},
+{
+"code": "MX",
+"name": "Mexico",
+"iso3": "MEX",
+"direct": 474,
+"data_year": 2025
+},
+{
+"code": "MD",
+"name": "Moldova, Republic of",
+"iso3": "MDA",
+"direct": 633,
+"data_year": 2025
+},
+{
+"code": "MN",
+"name": "Mongolia",
+"iso3": "MNG",
+"direct": 816,
+"data_year": 2025
+},
+{
+"code": "ME",
+"name": "Montenegro",
+"iso3": "MNE",
+"direct": 264,
+"data_year": 2025
+},
+{
+"code": "MS",
+"name": "Montserrat",
+"iso3": "MSR",
+"direct": 1000,
+"data_year": 2024
+},
+{
+"code": "MA",
+"name": "Morocco",
+"iso3": "MAR",
+"direct": 596,
+"data_year": 2025
+},
+{
+"code": "MZ",
+"name": "Mozambique",
+"iso3": "MOZ",
+"direct": 129,
+"data_year": 2024
+},
+{
+"code": "MM",
+"name": "Myanmar",
+"iso3": "MMR",
+"direct": 503,
+"data_year": 2024
+},
+{
+"code": "NA",
+"name": "Namibia",
+"iso3": "NAM",
+"direct": 49,
+"data_year": 2024
+},
+{
+"code": "NR",
+"name": "Nauru",
+"iso3": "NRU",
+"direct": 600,
+"data_year": 2024
+},
+{
+"code": "NP",
+"name": "Nepal",
+"iso3": "NPL",
+"direct": 24,
+"data_year": 2024
+},
+{
+"code": "NL",
+"name": "Netherlands, Kingdom of the",
+"iso3": "NLD",
+"direct": 254,
+"data_year": 2025
+},
+{
+"code": "NC",
+"name": "New Caledonia",
+"iso3": "NCL",
+"direct": 561,
+"data_year": 2024
+},
+{
+"code": "NZ",
+"name": "New Zealand",
+"iso3": "NZL",
+"direct": 93,
+"data_year": 2025
+},
+{
+"code": "NI",
+"name": "Nicaragua",
+"iso3": "NIC",
+"direct": 301,
+"data_year": 2024
+},
+{
+"code": "NE",
+"name": "Niger",
+"iso3": "NER",
+"direct": 674,
+"data_year": 2024
+},
+{
+"code": "NG",
+"name": "Nigeria",
+"iso3": "NGA",
+"direct": 456,
+"data_year": 2025
+},
+{
+"code": "MK",
+"name": "North Macedonia",
+"iso3": "MKD",
+"direct": 441,
+"data_year": 2025
+},
+{
+"code": "NO",
+"name": "Norway",
+"iso3": "NOR",
+"direct": 28,
+"data_year": 2025
+},
+{
+"code": "OM",
+"name": "Oman",
+"iso3": "OMN",
+"direct": 544,
+"data_year": 2025
+},
+{
+"code": "PK",
+"name": "Pakistan",
+"iso3": "PAK",
+"direct": 347,
+"data_year": 2025
+},
+{
+"code": "PS",
+"name": "Palestine, State of",
+"iso3": "PSE",
+"direct": 414,
+"data_year": 2024
+},
+{
+"code": "PA",
+"name": "Panama",
+"iso3": "PAN",
+"direct": 221,
+"data_year": 2024
+},
+{
+"code": "PG",
+"name": "Papua New Guinea",
+"iso3": "PNG",
+"direct": 514,
+"data_year": 2024
+},
+{
+"code": "PY",
+"name": "Paraguay",
+"iso3": "PRY",
+"direct": 25,
+"data_year": 2025
+},
+{
+"code": "PE",
+"name": "Peru",
+"iso3": "PER",
+"direct": 238,
+"data_year": 2025
+},
+{
+"code": "PH",
+"name": "Philippines",
+"iso3": "PHL",
+"direct": 588,
+"data_year": 2025
+},
+{
+"code": "PL",
+"name": "Poland",
+"iso3": "POL",
+"direct": 589,
+"data_year": 2025
+},
+{
+"code": "PT",
+"name": "Portugal",
+"iso3": "PRT",
+"direct": 128,
+"data_year": 2025
+},
+{
+"code": "PR",
+"name": "Puerto Rico",
+"iso3": "PRI",
+"direct": 655,
+"data_year": 2025
+},
+{
+"code": "QA",
+"name": "Qatar",
+"iso3": "QAT",
+"direct": 582,
+"data_year": 2025
+},
+{
+"code": "RO",
+"name": "Romania",
+"iso3": "ROU",
+"direct": 251,
+"data_year": 2025
+},
+{
+"code": "RU",
+"name": "Russian Federation",
+"iso3": "RUS",
+"direct": 450,
+"data_year": 2025
+},
+{
+"code": "RW",
+"name": "Rwanda",
+"iso3": "RWA",
+"direct": 354,
+"data_year": 2024
+},
+{
+"code": "RE",
+"name": "Réunion",
+"iso3": "REU",
+"direct": 394,
+"data_year": 2023
+},
+{
+"code": "SH",
+"name": "Saint Helena, Ascension and Tristan da Cunha",
+"iso3": "SHN",
+"direct": 1000,
+"data_year": 2023
+},
+{
+"code": "KN",
+"name": "Saint Kitts and Nevis",
+"iso3": "KNA",
+"direct": 609,
+"data_year": 2024
+},
+{
+"code": "LC",
+"name": "Saint Lucia",
+"iso3": "LCA",
+"direct": 650,
+"data_year": 2024
+},
+{
+"code": "PM",
+"name": "Saint Pierre and Miquelon",
+"iso3": "SPM",
+"direct": 600,
+"data_year": 2023
+},
+{
+"code": "VC",
+"name": "Saint Vincent and the Grenadines",
+"iso3": "VCT",
+"direct": 600,
+"data_year": 2024
+},
+{
+"code": "WS",
+"name": "Samoa",
+"iso3": "WSM",
+"direct": 375,
+"data_year": 2024
+},
+{
+"code": "ST",
+"name": "Sao Tome and Principe",
+"iso3": "STP",
+"direct": 556,
+"data_year": 2023
+},
+{
+"code": "SA",
+"name": "Saudi Arabia",
+"iso3": "SAU",
+"direct": 692,
+"data_year": 2024
+},
+{
+"code": "SN",
+"name": "Senegal",
+"iso3": "SEN",
+"direct": 540,
+"data_year": 2024
+},
+{
+"code": "RS",
+"name": "Serbia",
+"iso3": "SRB",
+"direct": 696,
+"data_year": 2025
+},
+{
+"code": "SC",
+"name": "Seychelles",
+"iso3": "SYC",
+"direct": 556,
+"data_year": 2024
+},
+{
+"code": "SL",
+"name": "Sierra Leone",
+"iso3": "SLE",
+"direct": 48,
+"data_year": 2024
+},
+{
+"code": "SG",
+"name": "Singapore",
+"iso3": "SGP",
+"direct": 497,
+"data_year": 2025
+},
+{
+"code": "SK",
+"name": "Slovakia",
+"iso3": "SVK",
+"direct": 95,
+"data_year": 2025
+},
+{
+"code": "SI",
+"name": "Slovenia",
+"iso3": "SVN",
+"direct": 183,
+"data_year": 2025
+},
+{
+"code": "SB",
+"name": "Solomon Islands",
+"iso3": "SLB",
+"direct": 636,
+"data_year": 2024
+},
+{
+"code": "SO",
+"name": "Somalia",
+"iso3": "SOM",
+"direct": 512,
+"data_year": 2024
+},
+{
+"code": "ZA",
+"name": "South Africa",
+"iso3": "ZAF",
+"direct": 699,
+"data_year": 2025
+},
+{
+"code": "SS",
+"name": "South Sudan",
+"iso3": "SSD",
+"direct": 643,
+"data_year": 2024
+},
+{
+"code": "ES",
+"name": "Spain",
+"iso3": "ESP",
+"direct": 154,
+"data_year": 2025
+},
+{
+"code": "LK",
+"name": "Sri Lanka",
+"iso3": "LKA",
+"direct": 329,
+"data_year": 2025
+},
+{
+"code": "SD",
+"name": "Sudan",
+"iso3": "SDN",
+"direct": 154,
+"data_year": 2024
+},
+{
+"code": "SR",
+"name": "Suriname",
+"iso3": "SUR",
+"direct": 322,
+"data_year": 2024
+},
+{
+"code": "SE",
+"name": "Sweden",
+"iso3": "SWE",
+"direct": 35,
+"data_year": 2025
+},
+{
+"code": "CH",
+"name": "Switzerland",
+"iso3": "CHE",
+"direct": 39,
+"data_year": 2025
+},
+{
+"code": "SY",
+"name": "Syrian Arab Republic",
+"iso3": "SYR",
+"direct": 706,
+"data_year": 2024
+},
+{
+"code": "TW",
+"name": "Taiwan, Province of China",
+"iso3": "TWN",
+"direct": 633,
+"data_year": 2025
+},
+{
+"code": "TJ",
+"name": "Tajikistan",
+"iso3": "TJK",
+"direct": 73,
+"data_year": 2025
+},
+{
+"code": "TZ",
+"name": "Tanzania, United Republic of",
+"iso3": "TZA",
+"direct": 345,
+"data_year": 2024
+},
+{
+"code": "TH",
+"name": "Thailand",
+"iso3": "THA",
+"direct": 546,
+"data_year": 2025
+},
+{
+"code": "TL",
+"name": "Timor-Leste",
+"iso3": "TLS",
+"direct": 667,
+"data_year": 2024
+},
+{
+"code": "TG",
+"name": "Togo",
+"iso3": "TGO",
+"direct": 423,
+"data_year": 2024
+},
+{
+"code": "TO",
+"name": "Tonga",
+"iso3": "TON",
+"direct": 571,
+"data_year": 2024
+},
+{
+"code": "TT",
+"name": "Trinidad and Tobago",
+"iso3": "TTO",
+"direct": 682,
+"data_year": 2024
+},
+{
+"code": "TN",
+"name": "Tunisia",
+"iso3": "TUN",
+"direct": 560,
+"data_year": 2025
+},
+{
+"code": "TM",
+"name": "Turkmenistan",
+"iso3": "TKM",
+"direct": 1306,
+"data_year": 2024
+},
+{
+"code": "TC",
+"name": "Turks and Caicos Islands",
+"iso3": "TCA",
+"direct": 630,
+"data_year": 2024
+},
+{
+"code": "TR",
+"name": "Türkiye",
+"iso3": "TUR",
+"direct": 475,
+"data_year": 2025
+},
+{
+"code": "UG",
+"name": "Uganda",
+"iso3": "UGA",
+"direct": 59,
+"data_year": 2024
+},
+{
+"code": "UA",
+"name": "Ukraine",
+"iso3": "UKR",
+"direct": 250,
+"data_year": 2022
+},
+{
+"code": "AE",
+"name": "United Arab Emirates",
+"iso3": "ARE",
+"direct": 468,
+"data_year": 2024
+},
+{
+"code": "GB",
+"name": "United Kingdom of Great Britain and Northern Ireland",
+"iso3": "GBR",
+"direct": 217,
+"data_year": 2025
+},
+{
+"code": "US",
+"name": "United States of America",
+"iso3": "USA",
+"direct": 384,
+"data_year": 2025
+},
+{
+"code": "UY",
+"name": "Uruguay",
+"iso3": "URY",
+"direct": 80,
+"data_year": 2025
+},
+{
+"code": "UZ",
+"name": "Uzbekistan",
+"iso3": "UZB",
+"direct": 1000,
+"data_year": 2025
+},
+{
+"code": "VU",
+"name": "Vanuatu",
+"iso3": "VUT",
+"direct": 500,
+"data_year": 2023
+},
+{
+"code": "VE",
+"name": "Venezuela, Bolivarian Republic of",
+"iso3": "VEN",
+"direct": 86,
+"data_year": 2024
+},
+{
+"code": "VN",
+"name": "Viet Nam",
+"iso3": "VNM",
+"direct": 461,
+"data_year": 2025
+},
+{
+"code": "VG",
+"name": "Virgin Islands (British)",
+"iso3": "VGB",
+"direct": 647,
+"data_year": 2023
+},
+{
+"code": "VI",
+"name": "Virgin Islands (U.S.)",
+"iso3": "VIR",
+"direct": 632,
+"data_year": 2023
+},
+{
+"code": "EH",
+"name": "Western Sahara",
+"iso3": "ESH",
+"direct": 667,
+"data_year": 2009
+},
+{
+"code": "YE",
+"name": "Yemen",
+"iso3": "YEM",
+"direct": 592,
+"data_year": 2024
+},
+{
+"code": "ZM",
+"name": "Zambia",
+"iso3": "ZMB",
+"direct": 120,
+"data_year": 2024
+},
+{
+"code": "ZW",
+"name": "Zimbabwe",
+"iso3": "ZWE",
+"direct": 384,
+"data_year": 2024
+}
+]
