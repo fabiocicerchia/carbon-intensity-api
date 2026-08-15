@@ -200,3 +200,44 @@ test("measuredLastHour: retries a transient failure, gives up after attempts", a
   assert.equal(await live.measuredLastHour("AU", { attempts: 2, backoffMs: 1, fetchers: { OpenNEM: dead } }), null);
   assert.equal(calls, 2);
 });
+
+// --- IESO (Ontario) ---
+const ieso = (date, hours) => `<?xml version="1.0"?>
+<IMODocument xmlns="http://www.theIMO.com/schema"><IMODocBody><Date>${date}</Date>
+${hours.map(([fuel, rows]) => `<Generator><GeneratorName>X</GeneratorName><FuelType>${fuel}</FuelType>
+  <Outputs>${rows.map(([h, mw]) => `<Output><Hour>${h}</Hour><EnergyMW>${mw}</EnergyMW></Output>`).join("")}</Outputs>
+</Generator>`).join("\n")}
+</IMODocBody></IMODocument>`;
+
+const IESO_XML = ieso("2026-08-15", [
+  ["NUCLEAR", [[5, 9000], [6, 0]]],
+  ["GAS", [[5, 1000], [6, 0]]],
+  ["WIND", [[5, 500], [6, 0]]],
+  ["OTHER", [[5, 100], [6, 0]]],
+]);
+
+test("parseIeso: latest reporting hour, EDT hour-ending mapped to UTC", () => {
+  const [hs, he, direct] = live.parseIeso(IESO_XML);
+  approx(direct, (1000 * 470) / 10600); // only the gas carries carbon
+  // Hour 5 ends 05:00 in Toronto; August is EDT (UTC-4).
+  assert.equal(hs, "2026-08-15T08:00:00Z");
+  assert.equal(he, "2026-08-15T09:00:00Z");
+});
+
+test("parseIeso: winter reading uses EST, not a fixed offset", () => {
+  const [hs, he] = live.parseIeso(ieso("2026-01-15", [["GAS", [[5, 1000]]]]));
+  assert.equal(hs, "2026-01-15T09:00:00Z");
+  assert.equal(he, "2026-01-15T10:00:00Z");
+});
+
+test("parseIeso: an unusable document throws rather than inventing a reading", () => {
+  assert.throws(() => live.parseIeso("<IMODocument/>"), /no <Date>/);
+  assert.throws(() => live.parseIeso(ieso("2026-08-15", [["GAS", [[1, 0]]]])), /no hour with usable generation/);
+});
+
+test("providerFor: Canada resolves to IESO, but only the zone has a fetcher", async () => {
+  assert.equal(live.providerFor("CA"), "IESO");
+  assert.deepEqual(live.zonesFor("CA"), ["ON"]);
+  // No zone -> no IESO fetcher -> null, so the country keeps its annual figure.
+  assert.equal(await live.measuredLastHour("CA", { env: {} }), null);
+});

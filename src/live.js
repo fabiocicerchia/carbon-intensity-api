@@ -7,6 +7,7 @@ import {
   EIA_FUEL_TO_FUEL,
   ENTSOE_PSR_TO_FUEL,
   ESKOM_INDEX_TO_FUEL,
+  IESO_FUEL_TO_FUEL,
   ONS_FUEL_TO_FUEL,
   OPENNEM_FUEL_TO_FUEL,
   SG_FUEL_TO_FUEL,
@@ -73,6 +74,11 @@ export const ZONES = {
     NSW1: "NEM/NSW1", QLD1: "NEM/QLD1", SA1: "NEM/SA1",
     TAS1: "NEM/TAS1", VIC1: "NEM/VIC1", WEM: "WEM",
   },
+  // IESO. Canada's grid is provincial and only Ontario publishes a keyless
+  // hourly fuel mix, so the country as a whole stays on the annual snapshot —
+  // Ontario at ~130 is not Quebec at ~30 or Alberta at ~500, and publishing one
+  // province's number as Canada's would be worse than the average it replaced.
+  CA: { ON: "ON" },
 };
 
 export function zonesFor(code) {
@@ -81,7 +87,7 @@ export function zonesFor(code) {
 
 // Countries with a national provider of their own. Everything else with an
 // ENTSO-E domain goes there; the rest have none.
-const PROVIDERS = { GB: "NESO", US: "EIA", BR: "ONS", AU: "OpenNEM", SG: "EMC", ZA: "Eskom" };
+const PROVIDERS = { GB: "NESO", US: "EIA", BR: "ONS", AU: "OpenNEM", SG: "EMC", ZA: "Eskom", CA: "IESO" };
 
 // --- helpers -----------------------------------------------------------------
 function iso(dt) {
@@ -315,6 +321,67 @@ export function parseEskomCsv(text) {
   return [hs, he, intensity];
 }
 
+// --- IESO (Ontario) -----------------------------------------------------------
+
+// The report stamps hours in Eastern Prevailing Time and carries no offset, so
+// the mapping to UTC moves twice a year. Intl is the only thing in Node that
+// knows when. Two passes: the offset has to be read at the instant being
+// converted, and the first guess can land the wrong side of a DST switch.
+function zoneOffsetMs(tz, at) {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: tz, hour12: false,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+    }).formatToParts(at).map((x) => [x.type, x.value]),
+  );
+  const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second);
+  return asUtc - at.getTime();
+}
+
+function easternToUtc(y, m, d, hour) {
+  const naive = Date.UTC(y, m - 1, d, hour);
+  const once = naive - zoneOffsetMs("America/Toronto", new Date(naive));
+  return new Date(naive - zoneOffsetMs("America/Toronto", new Date(once)));
+}
+
+// Hour N is the hour *ending* N:00 local: hour 1 covers 00:00-01:00.
+//
+// ponytail: on the two DST days IESO publishes 23 or 25 hours and the repeated
+// autumn hour is indistinguishable here, so one reading a year is stamped an
+// hour out. Carrying the report's DST flag would fix it; not worth the parser.
+export function parseIeso(xml) {
+  const date = (xml.match(/<Date>([^<]+)</) || [])[1];
+  if (!date) throw new Error("IESO document had no <Date>");
+  const [y, m, d] = date.trim().split("-").map(Number);
+
+  // The file covers the whole delivery day and is republished hourly, so the
+  // tail is empty for hours that have not happened yet. Sum every hour, then
+  // take the latest one that actually reported.
+  const byHour = new Map();
+  for (const gen of xml.match(/<Generator>[\s\S]*?<\/Generator>/g) || []) {
+    const raw = (gen.match(/<FuelType>([^<]*)</) || [])[1] || "";
+    const fuel = IESO_FUEL_TO_FUEL[raw.trim().toLowerCase()] || "other";
+    const outputs = (gen.match(/<Outputs>[\s\S]*?<\/Outputs>/) || [])[0] || "";
+    for (const o of outputs.match(/<Output>[\s\S]*?<\/Output>/g) || []) {
+      const hour = parseInt((o.match(/<Hour>(\d+)</) || [])[1], 10);
+      const mw = parseFloat((o.match(/<EnergyMW>([^<]+)</) || [])[1]);
+      if (Number.isNaN(hour) || Number.isNaN(mw)) continue;
+      if (!byHour.has(hour)) byHour.set(hour, {});
+      const mix = byHour.get(hour);
+      mix[fuel] = (mix[fuel] || 0) + mw;
+    }
+  }
+
+  for (const hour of [...byHour.keys()].sort((a, b) => b - a)) {
+    const intensity = mixToDirectIntensity(byHour.get(hour));
+    if (intensity == null) continue; // an hour present but with no output yet
+    const end = easternToUtc(y, m, d, hour);
+    return [iso(new Date(end.getTime() - 3600 * 1000)), iso(end), intensity];
+  }
+  throw new Error("IESO report had no hour with usable generation");
+}
+
 // --- fetch wrappers -----------------------------------------------------------
 const TIMEOUT_MS = 15000;
 
@@ -369,6 +436,16 @@ export async function fetchSg() {
   return parseSg(await get("https://www.emcsg.com/ChartServer/blue/ticker"));
 }
 
+export async function fetchIeso() {
+  // GenOutputCapability, not GenOutputbyFuelHourly: the latter is the tidier
+  // shape but is republished once a day and a day behind, which is no use to an
+  // hourly pipeline. This one is 70 KB, current-day, and updated every hour.
+  return parseIeso(await get(
+    "https://reports-public.ieso.ca/public/GenOutputCapability/PUB_GenOutputCapability.xml",
+    "text",
+  ));
+}
+
 export async function fetchEskom() {
   const now = new Date();
   const url = "https://www.eskom.co.za/dataportal/wp-content/uploads/"
@@ -393,6 +470,10 @@ function defaultFetchers(code, env, zone = null) {
     EMC: fetchSg,
     Eskom: fetchEskom,
   };
+  // Ontario only, so it is registered just for the zone request: asked for CA
+  // as a country there is no fetcher, measuredLastHour returns null, and the
+  // annual snapshot stands (see ZONES.CA).
+  if (zone) out.IESO = fetchIeso;
   const eia = env.EIA_TOKEN || env.EIA_API_KEY;
   if (eia) out.EIA = () => fetchEia(eia, ref || "US48");
   const ent = env.ENTSOE_TOKEN || env.ENTSOE_API_KEY;

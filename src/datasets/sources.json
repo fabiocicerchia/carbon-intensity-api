@@ -210,8 +210,8 @@
     "ref": null
   },
   "CA": {
-    "name": "AESO",
-    "url": "http://ets.aeso.ca/ets_web/ip/Market/Reports/CSDReportServlet",
+    "name": "IESO",
+    "url": "https://reports-public.ieso.ca/public/GenOutputCapability/",
     "realtime": true,
     "status": "operational",
     "ref": null

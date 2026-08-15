@@ -113,6 +113,24 @@ export const SG_FUEL_TO_FUEL = {
   solar: "solar",
 };
 
+// IESO (Ontario) Generator Output and Capability <FuelType> -> canonical fuel.
+// Source: the report's own schema (GenOutputCapability_r3.xsd) — the fuel types
+// it emits are NUCLEAR, GAS, HYDRO, WIND, SOLAR, BIOFUEL and OTHER.
+//
+// OTHER is a handful of small units the IESO does not classify further. It maps
+// to `other` (0 gCO2) as ENTSO-E's unmapped psrTypes do; it is under 1% of
+// Ontario's output, so the alternative — guessing a fossil factor — would be a
+// larger error than the one it fixes.
+export const IESO_FUEL_TO_FUEL = {
+  nuclear: "nuclear",
+  gas: "gas",
+  hydro: "hydro",
+  wind: "wind",
+  solar: "solar",
+  biofuel: "biomass",
+  other: "other",
+};
+
 // Eskom (South Africa) Station_Build_Up.csv column index (after the datetime)
 // -> canonical fuel. Source: Eskom Data Portal column glossary. Only generation
 // columns are listed; storage/import/load-shed columns are skipped.
