@@ -274,6 +274,44 @@ test("a past-hour object is removed once no complete hour remains", async () => 
   assert.ok("v2/IT/current-hour" in s.files);
 });
 
+test("the OpenAPI document covers every route and resolves every $ref", async () => {
+  const s = store();
+  await writeV2({ generated_at: "2026-08-27T12:00:00Z", series: { countries: {}, zones: {} } },
+    s.put, s.get, s.del);
+  const spec = JSON.parse(s.files["v2/openapi.json"]);
+
+  // Every published route is documented. This is the assertion that fails when
+  // a route is added and the spec is not regenerated.
+  assert.deepEqual(Object.keys(spec.paths).sort(), [
+    "/v2/countries.json",
+    "/v2/past-hour.json",
+    "/v2/{code}/current-hour",
+    "/v2/{code}/history/{date}",
+    "/v2/{code}/past-hour",
+    "/v2/{code}/yearly",
+    "/v2/{code}/{zone}/current-hour",
+    "/v2/{code}/{zone}/history/{date}",
+    "/v2/{code}/{zone}/past-hour",
+  ]);
+
+  // Generated from the live data, so it cannot drift from what is served.
+  assert.equal(spec.components.parameters.code.schema.enum.length, 213);
+  assert.equal(spec.components.parameters.zone.schema.enum.length, 80);
+  assert.ok(spec.components.parameters.zone.schema.enum.includes("SICI"));
+
+  // A dangling $ref renders as a blank section rather than an error, so check.
+  const refs = [...JSON.stringify(spec).matchAll(/"\$ref":"#\/([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(refs.length > 0);
+  for (const ref of refs) {
+    const target = ref.split("/").reduce((o, k) => (o == null ? o : o[k]), spec);
+    assert.ok(target, `unresolved $ref: #/${ref}`);
+  }
+
+  // No timestamp: the spec describes the API's shape, so it must stay
+  // byte-identical between runs and out of the commit log.
+  assert.equal(JSON.stringify(spec).includes("generated_at\":\"2026"), false);
+});
+
 test("v1 still reads the newest point when a provider returns a whole window", () => {
   // The premise the v2 split rests on: widening the parsers must not move v1.
   const series = quarterly([

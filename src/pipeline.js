@@ -17,6 +17,7 @@ import {
   yearlyDocument,
 } from "./data.js";
 import { ZONES, measuredLastHour, newestReading, zonesFor } from "./live.js";
+import { buildSpec } from "./openapi.js";
 
 function nowIso() {
   return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -256,6 +257,11 @@ export async function writeV2(snapshot, put, get = null, del = null) {
       consumption_lifecycle: y.consumption_lifecycle,
     };
   });
+  // The contract, generated from the same COUNTRIES/ZONES the documents are
+  // built from. Carries no timestamp, so it is byte-identical between runs and
+  // only shows up in the commit log when the API actually changes.
+  await put("v2/openapi.json", pretty(buildSpec()));
+
   await put("v2/countries.json", pretty({
     count: catalogue.length,
     generated_at: snapshot.generated_at,
