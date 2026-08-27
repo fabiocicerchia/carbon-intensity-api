@@ -49,6 +49,15 @@ explicitly; without it aws infers from the name and serves
 `application/octet-stream`, which browsers download instead of display.
 
 ```
+v2/DE/yearly             annual average, every country
+v2/DE/past-hour          last completed clock hour
+v2/DE/current-hour       hour in progress
+v2/DE/history/2026-08-27 one UTC day of hourly means
+v2/IT/SICI/past-hour     a zone is just the next code down
+v2/countries.json        catalogue + annual figures  (bulk -> keeps its extension)
+v2/past-hour.json        measured countries, one document
+v2/openapi.json          the generated contract
+
 v1/last-hour/DE          country (ISO-2)
 v1/last-hour/DEU         ISO-3 alias, identical content
 v1/zones/IT/SICI         zone
@@ -65,6 +74,23 @@ country's file and the folder holding its zones.
 
 `v1/countries` and the ISO-3 aliases are written as objects: a bucket cannot run
 `resolveCode()`, so `DEU` has to exist as a key of its own.
+
+**Two naming rules for v2, both load-bearing.** An UPPERCASE segment is a code
+and a lowercase-hyphenated one is a resource, which is what lets
+`v2/IT/SICI/past-hour` be parsed without a `zones/` marker — checked against all
+80 live zone codes, every one uppercase alphanumeric. And a per-entity key
+carries no extension while a bulk document ends `.json`, extending what v1
+already did for `latest.json` and `index.json`.
+
+v2 sidesteps the file-versus-directory trap entirely: nothing is ever both,
+since `v2/IT` and `v2/IT/SICI` are only ever directories. It is also why a date
+is a path segment (`history/2026-08-27`) — the bucket is served directly, so
+`?start=&end=` has nothing to parse it.
+
+A day's history file is **not rewritten once the day closes**. `writeHistory`
+compares the document it would write against the stored one and skips an
+identical result, so a provider returning a long window costs a comparison
+rather than a churned object. Anything caching those objects can rely on it.
 
 ## What serving statically gives up
 

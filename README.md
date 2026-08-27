@@ -28,19 +28,105 @@ Run it by hand, or from cron for the hourly cadence the readings assume.
 
 ## Endpoints
 
-Everything is under `/v1`. Lookups are
-path-based (no query strings).
+Lookups are path-based — the bucket is served directly, so there is nothing in
+the request path to read a query string.
+
+### v2 — use this
 
 | Path | Returns |
 |------|---------|
-| `/v1/last-hour/<CODE>` | Last-hour reading for one country (O(1); ISO-2 or ISO-3) |
+| `/v2/<CODE>/past-hour` | The last **completed** clock hour: the mean of every point in it. Immutable once published. |
+| `/v2/<CODE>/current-hour` | The hour **in progress**: the mean of the points so far. Moves between runs. |
+| `/v2/<CODE>/history/<YYYY-MM-DD>` | One UTC day of hourly means. |
+| `/v2/<CODE>/yearly` | The annual average. Every country has one. |
+| `/v2/<CODE>/<ZONE>/…` | The same three hourly routes for a bidding zone / balancing region — `/v2/IT/SICI/past-hour` |
+| `/v2/countries.json` | Every country: metadata, zones, realtime availability **and** annual figures |
+| `/v2/past-hour.json` | The measured countries' last completed hour, in one document |
+| `/v2/openapi.json` | The contract, generated from the same data the API serves |
+
+**Path grammar:** an UPPERCASE segment is a code, a lowercase-hyphenated one is
+a resource. So `/v2/IT/SICI/past-hour` reads unambiguously as country, zone,
+resource, and a zone is simply the next code down rather than needing a `zones/`
+marker. ISO-2 only in v2 — the ISO-3 aliases are a v1 feature.
+
+**Coverage.** The hourly routes exist only where a provider publishes live
+generation. Everything else 404s, rather than serving a yearly constant under a
+name that promises an hour:
+
+| | `/yearly` | `/past-hour`, `/current-hour`, `/history` |
+|---|---|---|
+| countries with a live provider | yes | yes |
+| countries without one | yes | **404** |
+| zones | **404** | yes |
+
+Zones have no annual figure because the annual dataset is country-level — the
+same reason they are measured-only.
+
+`/past-hour` additionally needs a **complete** hour — one holding all
+`points_expected` of its points. How quickly that happens depends on how much
+the provider hands over per call: ENTSO-E returns three hours at a time and IESO
+the whole delivery day, so their hours complete as soon as they are over. A
+provider that publishes one snapshot per call (OpenNEM, EMC, Eskom, ONS) reports
+`resolution_sec: 3600`, so one point completes its hour — for those, `complete`
+means "everything this provider gives for that hour", not "four samples".
+
+### Reading the v2 history shape
+
+`/v2/<CODE>/history/<date>` is columnar: one array per figure, plus `points`
+and `complete`, all index-aligned to the hour beginning `start + i*3600`.
+
+- **A missing hour is `null`, never omitted.** Dropping it would slide every
+  later value into the wrong hour.
+- Today's document is **truncated** at the last hour seen; a closed day has all
+  24 entries.
+- `points[i]` is how many source points the mean covers; `complete[i]` says
+  whether that was all of them. Both describe the hour, not a figure, so there
+  is one of each rather than one per figure.
+- There is deliberately **no day-level `resolution_sec`/`points_expected`**: a
+  provider can change granularity mid-day, so completeness is decided per hour
+  when the hour is written. Do not recompute it client-side.
+- Zone documents carry `direct` and `lifecycle` only.
+- **A closed day never changes again**, so it is safe to cache indefinitely.
+- Treat a 404 for a date as *no data for that date*, not an error.
+
+**Check the status code before parsing the body as JSON.** Depending on what
+sits in front of the bucket, a 404 or a rate-limit response is likely to be HTML
+or plain text rather than JSON — those are the edge's own responses, not this
+API's. Feeding them to a JSON parser is the most likely way to break a client.
+
+### v1 — frozen
+
+Still served, still refreshed every run, unchanged in shape. It will be removed;
+prefer v2 for anything new.
+
+| Path | Returns |
+|------|---------|
+| `/v1/last-hour/<CODE>` | Newest **data point** for one country (ISO-2 or ISO-3) |
 | `/v1/zones/<CODE>/<ZONE>` | Same for a bidding zone / balancing region — `IT/SICI`, `SE/SE3`, `US/TEX`, `AU/NSW1` |
 | `/v1/latest.json` | All countries in one snapshot |
 | `/v1/countries` | Supported countries (with `realtime_available`, `zones` + data source) |
 | `/` | HTML landing page |
 
+`/v1/last-hour/` does not return an hour. It returns the newest point the
+operator published, which is 15 minutes wide for ENTSO-E and an hour for EIA —
+the name predates the providers moving to sub-hourly resolution. `hour_start`
+and `hour_end` are that point's own bounds. v2's `period_start`/`period_end` are
+always a true clock hour, with `resolution_sec` saying how wide the underlying
+points were.
+
 Each reading embeds its `data_source` (operator, URL, status), so a separate
 sources endpoint isn't needed.
+
+### Migrating
+
+| v1 | v2 |
+|----|----|
+| `/v1/last-hour/IT` | `/v2/IT/current-hour` (partial, live) or `/v2/IT/past-hour` (complete) |
+| `/v1/zones/IT/SICI` | `/v2/IT/SICI/current-hour` |
+| `/v1/latest.json` | `/v2/countries.json` for the static picture, `/v2/past-hour.json` for live |
+| `/v1/countries` | `/v2/countries.json` — same fields plus the four annual figures |
+| `hour_start` / `hour_end` | `period_start` / `period_end` (+ `resolution_sec`) |
+| annual figure via `/v1/last-hour/<CODE>` | `/v2/<CODE>/yearly` |
 
 The four figures are the corners of two axes — scope (combustion only vs plus
 upstream) and boundary (generated here vs consumed here):
