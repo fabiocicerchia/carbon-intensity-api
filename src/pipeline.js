@@ -92,7 +92,7 @@ const ANNUAL_REFRESH_SECONDS = 7 * 24 * 3600;
 // let a change of shape — a renamed or added field — sit unpublished behind the
 // week-long window, which is exactly how the hour_start/hour_end change would
 // have failed to reach 176 countries for a week.
-function sameExceptTimestamp(a, b) {
+export function sameExceptTimestamp(a, b) {
   const strip = ({ generated_at, ...rest }) => JSON.stringify(rest);
   return strip(a) === strip(b);
 }
