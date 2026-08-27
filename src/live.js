@@ -124,12 +124,53 @@ function intervalMinutes(text) {
   return 5;
 }
 
+// --- the parser contract ------------------------------------------------------
+// Every parse* returns a SERIES: { resolution_sec, points: [{start, end, direct}] },
+// oldest point first. Providers were publishing several points per response all
+// along — ENTSO-E's A75 covers three hours at PT15M, EIA sorts 200 hourly rows —
+// and every parser used to keep only the newest and drop the rest, which is why
+// an hourly *mean* was not computable and history had to be sampled one run at a
+// time.
+//
+// `resolution_sec` is the cadence at which this provider gives us points, not
+// necessarily its own internal granularity. For a provider that publishes one
+// snapshot per request (OpenNEM, EMC, Eskom, ONS) that cadence is hourly and the
+// single point represents its clock hour — declaring the true sub-hourly
+// granularity instead would mark every hour permanently incomplete and
+// /past-hour would never answer for those countries.
+function series(resolutionSec, points) {
+  return { resolution_sec: resolutionSec, points };
+}
+
+// One point covering the clock hour containing `instant`. The shape the
+// snapshot providers produce, and exactly the window v1 gave them.
+function hourPoint(instant, direct) {
+  const [start, end] = hourWindow(instant);
+  return series(3600, [{ start, end, direct }]);
+}
+
+// How many points a complete hour holds for this resolution. 4 at PT15M, 2 for
+// NESO's half-hourly settlement periods, 1 for an hourly feed.
+export function pointsPerHour(resolutionSec) {
+  return Math.max(1, Math.round(3600 / resolutionSec));
+}
+
+// The v1 reading: the newest point, which is what the single-reading parsers
+// returned before they were widened to a series. v1 objects are frozen, so this
+// is the adapter that keeps them byte-identical.
+export function newestReading(s) {
+  if (!s || !s.points || s.points.length === 0) return null;
+  const p = s.points[s.points.length - 1];
+  return { direct: p.direct, hour_start: p.start, hour_end: p.end, source: s.source };
+}
+
 // --- ENTSO-E (dependency-free XML extraction of A75) --------------------------
 export function parseEntsoe(xml) {
   const blocks = xml.match(/<TimeSeries\b[\s\S]*?<\/TimeSeries>/g) || [];
-  let latestEnd = null;
-  let resolutionMinutes = 60;
-  const mix = {};
+  // One TimeSeries per fuel, each carrying the whole window, so the mix has to
+  // be accumulated per instant rather than per document — keyed by the point's
+  // own start, which also absorbs a series that skips positions.
+  const byInstant = new Map();
   for (const ts of blocks) {
     const hasOut = /<outBiddingZone_Domain\.mRID/.test(ts);
     const hasIn = /<inBiddingZone_Domain\.mRID/.test(ts);
@@ -145,29 +186,33 @@ export function parseEntsoe(xml) {
       const step = intervalMinutes(
         resM ? resM[1].trim().replace(/^PT/i, "") : "60m",
       );
-      let last = null;
+      const start = parseDt(startM[1]);
       for (const p of points) {
         const pos = parseInt((p.match(/<position>(\d+)/) || [])[1], 10);
         const qty = parseFloat((p.match(/<quantity>([^<]+)/) || [])[1]);
-        if (!Number.isNaN(pos) && !Number.isNaN(qty) && (!last || pos > last.pos)) {
-          last = { pos, qty };
-        }
+        if (Number.isNaN(pos) || Number.isNaN(qty)) continue;
+        const ms = start.getTime() + step * (pos - 1) * 60000;
+        if (!byInstant.has(ms)) byInstant.set(ms, { step, mix: {} });
+        const slot = byInstant.get(ms);
+        slot.mix[fuel] = (slot.mix[fuel] || 0) + qty;
       }
-      if (!last) continue;
-      const start = parseDt(startM[1]);
-      const pointStart = new Date(start.getTime() + step * (last.pos - 1) * 60000);
-      const pointEnd = new Date(pointStart.getTime() + step * 60000);
-      mix[fuel] = (mix[fuel] || 0) + last.qty;
-      resolutionMinutes = step;
-      if (!latestEnd || pointEnd > latestEnd) latestEnd = pointEnd;
     }
   }
-  const intensity = mixToDirectIntensity(mix);
-  if (intensity == null || !latestEnd) {
+
+  const out = [];
+  for (const ms of [...byInstant.keys()].sort((a, b) => a - b)) {
+    const { step, mix } = byInstant.get(ms);
+    const direct = mixToDirectIntensity(mix);
+    if (direct == null) continue; // an instant present but with nothing usable
+    out.push({ start: iso(new Date(ms)), end: iso(new Date(ms + step * 60000)), direct });
+  }
+  if (out.length === 0) {
     throw new Error("ENTSO-E document contained no usable generation data");
   }
-  const hourStart = new Date(latestEnd.getTime() - resolutionMinutes * 60000);
-  return [iso(hourStart), iso(latestEnd), intensity];
+  // The newest point's own step: a document that changes resolution part-way
+  // through describes the present with its last one.
+  const newest = byInstant.get(Math.max(...byInstant.keys()));
+  return series(newest.step * 60, out);
 }
 
 // --- EIA ----------------------------------------------------------------------
@@ -175,30 +220,75 @@ export function parseEia(payload) {
   const obj = typeof payload === "string" ? JSON.parse(payload) : payload;
   const rows = obj?.response?.data || [];
   if (rows.length === 0) throw new Error("EIA response contained no data rows");
-  const latestPeriod = rows.reduce((a, r) => (r.period > a ? r.period : a), rows[0].period);
-  const mix = {};
+  // fetchEia asks for 200 rows sorted by period; every period in them is a
+  // point, not just the newest.
+  const byPeriod = new Map();
   for (const r of rows) {
-    if (r.period !== latestPeriod) continue;
     const fuel = EIA_FUEL_TO_FUEL[r.fueltype] || "other";
     const val = parseFloat(r.value);
     if (Number.isNaN(val)) continue;
+    if (!byPeriod.has(r.period)) byPeriod.set(r.period, {});
+    const mix = byPeriod.get(r.period);
     mix[fuel] = (mix[fuel] || 0) + val;
   }
-  const intensity = mixToDirectIntensity(mix);
-  if (intensity == null) throw new Error("EIA period had no usable generation data");
-  const start = parseDt(latestPeriod);
-  return [iso(start), iso(new Date(start.getTime() + 3600 * 1000)), intensity];
+  const out = [];
+  for (const period of [...byPeriod.keys()].sort()) {
+    const direct = mixToDirectIntensity(byPeriod.get(period));
+    if (direct == null) continue;
+    const start = parseDt(period);
+    out.push({ start: iso(start), end: iso(new Date(start.getTime() + 3600 * 1000)), direct });
+  }
+  if (out.length === 0) throw new Error("EIA period had no usable generation data");
+  return series(3600, out);
 }
 
 // --- UK NESO ------------------------------------------------------------------
-export function parseUk(payload) {
+// `payload` is /intensity: exactly one row, the settlement period in progress,
+// and the row v1 reports verbatim. `dayPayload` is the optional /intensity/date
+// feed, which carries every period of the settlement day — the only way an hour
+// gets both of its halves, since /intensity is a single period per call and the
+// two halves would otherwise arrive on different runs with nothing to join them.
+//
+// The day feed cannot simply replace /intensity: its tail is future periods
+// carrying only a forecast, and it lags by a period (it had no `actual` for the
+// in-progress one). So it is filtered to settled rows and used only to widen the
+// series *behind* the current period.
+export function parseUk(payload, dayPayload = null) {
   const obj = typeof payload === "string" ? JSON.parse(payload) : payload;
   const rows = obj?.data || [];
   if (rows.length === 0) throw new Error("NESO response contained no data");
-  const row = rows[rows.length - 1];
-  const value = row.intensity?.actual ?? row.intensity?.forecast;
-  if (value == null) throw new Error("NESO period had no intensity");
-  return [iso(parseDt(row.from)), iso(parseDt(row.to)), Number(value)];
+  const valueOf = (row) => row?.intensity?.actual ?? row?.intensity?.forecast;
+  // Checked against the newest row specifically, not "any row has a value":
+  // v1 fell back to the annual figure when the current period had no intensity,
+  // and widening to a series must not quietly start answering with an older one.
+  const newest = rows[rows.length - 1];
+  if (valueOf(newest) == null) throw new Error("NESO period had no intensity");
+
+  const byStart = new Map();
+  let stepSec = 1800; // half-hourly settlement periods
+  const add = (row, value) => {
+    const start = parseDt(row.from);
+    const end = parseDt(row.to);
+    const span = Math.round((end.getTime() - start.getTime()) / 1000);
+    if (span > 0) stepSec = span;
+    byStart.set(iso(start), { start: iso(start), end: iso(end), direct: Number(value) });
+  };
+
+  // Settled periods first; only rows with a real `actual`, never a forecast.
+  const dayObj = typeof dayPayload === "string" ? JSON.parse(dayPayload) : dayPayload;
+  for (const row of dayObj?.data || []) {
+    const settled = row?.intensity?.actual;
+    if (settled != null) add(row, settled);
+  }
+  // Then the current period, last and authoritative — keyed by start, so it
+  // replaces the day feed's copy rather than duplicating it.
+  for (const row of rows) {
+    const value = valueOf(row);
+    if (value != null) add(row, value);
+  }
+
+  const out = [...byStart.keys()].sort().map((k) => byStart.get(k));
+  return series(stepSec, out);
 }
 
 // --- ONS (Brazil) -------------------------------------------------------------
@@ -219,8 +309,7 @@ export function parseOns(payload) {
   }
   const intensity = mixToDirectIntensity(mix);
   if (!found || intensity == null) throw new Error("ONS response had no usable data");
-  const [hs, he] = hourWindow(parseDt(obj.Data));
-  return [hs, he, intensity];
+  return hourPoint(parseDt(obj.Data), intensity);
 }
 
 // --- OpenNEM / OpenElectricity ------------------------------------------------
@@ -259,8 +348,11 @@ export function parseOpennem(payload) {
   }
   const intensity = mixToDirectIntensity(mix);
   if (intensity == null) throw new Error("OpenNEM latest interval had no usable generation");
-  const [hs, he] = hourWindow(new Date(instant));
-  return [hs, he, intensity];
+  // ponytail: one point per fetch, though the 7d payload holds a full 5-minute
+  // history per fuel. Widening it means re-aligning every track at every
+  // instant, not just the newest — worth doing only if AU history matters
+  // enough to pay for it.
+  return hourPoint(new Date(instant), intensity);
 }
 
 // --- Singapore EMC ------------------------------------------------------------
@@ -288,8 +380,7 @@ export function parseSg(payload) {
   const month = MONTHS[mon.slice(0, 3).toLowerCase()];
   const period = parseInt(num(obj.Period), 10);
   const instant = new Date(Date.UTC(+y, month, +d, 0, 30 * (period - 1)) - 8 * 3600 * 1000); // SGT +08:00
-  const [hs, he] = hourWindow(instant);
-  return [hs, he, intensity];
+  return hourPoint(instant, intensity);
 }
 
 // --- Eskom (South Africa) -----------------------------------------------------
@@ -317,8 +408,11 @@ export function parseEskomCsv(text) {
   }
   const intensity = mixToDirectIntensity(mix);
   if (intensity == null) throw new Error("Eskom row had no usable generation data");
-  const [hs, he] = hourWindow(new Date(latestMs));
-  return [hs, he, intensity];
+  // ponytail: newest row only, though Station_Build_Up.csv carries the whole
+  // month. Returning all of it would rewrite closed history days on every run,
+  // which is exactly the immutability the caching design depends on — a
+  // bounded backfill path is the right place for that, not the live parser.
+  return hourPoint(new Date(latestMs), intensity);
 }
 
 // --- IESO (Ontario) -----------------------------------------------------------
@@ -373,13 +467,21 @@ export function parseIeso(xml) {
     }
   }
 
-  for (const hour of [...byHour.keys()].sort((a, b) => b - a)) {
+  // Every reporting hour is a point, ascending. The document already held the
+  // whole delivery day; only the newest hour used to survive.
+  const out = [];
+  for (const hour of [...byHour.keys()].sort((a, b) => a - b)) {
     const intensity = mixToDirectIntensity(byHour.get(hour));
     if (intensity == null) continue; // an hour present but with no output yet
     const end = easternToUtc(y, m, d, hour);
-    return [iso(new Date(end.getTime() - 3600 * 1000)), iso(end), intensity];
+    out.push({
+      start: iso(new Date(end.getTime() - 3600 * 1000)),
+      end: iso(end),
+      direct: intensity,
+    });
   }
-  throw new Error("IESO report had no hour with usable generation");
+  if (out.length === 0) throw new Error("IESO report had no hour with usable generation");
+  return series(3600, out);
 }
 
 // --- fetch wrappers -----------------------------------------------------------
@@ -419,7 +521,15 @@ export async function fetchEia(token, respondent = "US48") {
 }
 
 export async function fetchUk() {
-  return parseUk(await get("https://api.carbonintensity.org.uk/intensity"));
+  // Two calls: the current period (what v1 reports) and the settlement day
+  // behind it (what makes an hour completable). The day feed is best-effort —
+  // if it fails GB degrades to one point per hour, which is what it had before,
+  // rather than losing the reading altogether.
+  const [now, day] = await Promise.all([
+    get("https://api.carbonintensity.org.uk/intensity"),
+    get("https://api.carbonintensity.org.uk/intensity/date").catch(() => null),
+  ]);
+  return parseUk(now, day);
 }
 
 export async function fetchOns() {
@@ -483,7 +593,9 @@ function defaultFetchers(code, env, zone = null) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Return a measured reading { direct, hour_start, hour_end, source } or null.
+// Return a provider series { resolution_sec, points, source } or null.
+// `newestReading()` collapses it to the v1 { direct, hour_start, hour_end,
+// source } shape for callers that want a single reading.
 //
 // Retries a failing provider `attempts` times with exponential backoff. A
 // country falling back to its annual figure loses accuracy; a zone has nothing
@@ -500,8 +612,9 @@ export async function measuredLastHour(
   if (!fetch_) return null;
   for (let i = 0; i < attempts; i += 1) {
     try {
-      const [hour_start, hour_end, direct] = await fetch_();
-      return { direct, hour_start, hour_end, source: provider };
+      const s = await fetch_();
+      if (!s || !s.points || s.points.length === 0) throw new Error("empty series");
+      return { ...s, source: provider };
     } catch {
       // Exponential (1s, 2s), jittered: the pipeline fires every US balancing
       // authority at EIA at once, so a deterministic backoff would have them

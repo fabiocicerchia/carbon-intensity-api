@@ -5,7 +5,7 @@
 // unnamed, so this file is identical in both repos.
 
 import { ATTRIBUTION, COUNTRIES, ProviderlessZone, lastHour, listCountries } from "./data.js";
-import { ZONES, measuredLastHour, zonesFor } from "./live.js";
+import { ZONES, measuredLastHour, newestReading, zonesFor } from "./live.js";
 
 function nowIso() {
   return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -20,9 +20,14 @@ function knownZones() {
 
 export async function buildSnapshot({ useLive = true, env = {}, generatedAt = null } = {}) {
   const codes = Object.keys(COUNTRIES).sort();
+  // The provider series is kept alongside the v1 reading rather than discarded:
+  // v1 wants one point (`newestReading`), later consumers want every point in
+  // the window. One fetch feeds both.
+  const countrySeries = {};
   const readings = await Promise.all(codes.map(async (code) => {
-    const measured = useLive ? await measuredLastHour(code, { env }) : null;
-    return lastHour(code, { measured });
+    const s = useLive ? await measuredLastHour(code, { env }) : null;
+    if (s) countrySeries[code] = s;
+    return lastHour(code, { measured: newestReading(s) });
   }));
   const countries = {};
   let measuredCount = 0;
@@ -35,10 +40,14 @@ export async function buildSnapshot({ useLive = true, env = {}, generatedAt = nu
   // absent — there is no annual figure to stand in for it — so the set of keys
   // varies hour to hour.
   const pairs = useLive ? knownZones() : [];
+  const zoneSeries = {};
   const zoneReadings = await Promise.all(pairs.map(async ([code, zone]) => {
-    const measured = await measuredLastHour(code, { env, zone });
+    const key = `${code}/${zone}`;
+    const s = await measuredLastHour(code, { env, zone });
     try {
-      return [`${code}/${zone}`, lastHour(code, { measured, zone })];
+      const reading = lastHour(code, { measured: newestReading(s), zone });
+      if (s) zoneSeries[key] = s;
+      return [key, reading];
     } catch (e) {
       if (e instanceof ProviderlessZone) return null;
       throw e;
@@ -55,6 +64,8 @@ export async function buildSnapshot({ useLive = true, env = {}, generatedAt = nu
     attribution: ATTRIBUTION,
     countries,
     zones,
+    // Not published: kept for consumers that need more than the newest point.
+    series: { countries: countrySeries, zones: zoneSeries },
   };
 }
 
@@ -88,7 +99,10 @@ function sameExceptTimestamp(a, b) {
 
 export async function writeAll(snapshot, put, get = null) {
   const pretty = (o) => `${JSON.stringify(o, null, 2)}\n`;
-  await put("v1/latest.json", pretty(snapshot));
+  // `series` is working state, not part of the published snapshot — latest.json
+  // is a documented shape and must not gain a field.
+  const { series, ...published } = snapshot;
+  await put("v1/latest.json", pretty(published));
   const docs = countryDocs(snapshot);
   const codes = Object.keys(docs).sort();
   const now = Date.parse(snapshot.generated_at);
