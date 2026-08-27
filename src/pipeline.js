@@ -1,7 +1,8 @@
 // Snapshot pipeline: build the last-hour reading for every country (live where
 // a provider exists, annual snapshot otherwise) and persist it via an injected
-// async `put(path, body)` — today always the filesystem, whose contents
-// sync.sh pushes into the bucket.
+// async `put(path, body)` — today always the filesystem, whose contents are
+// then synced into the bucket by whatever invokes sync.sh — deliberately
+// unnamed, so this file is identical in both repos.
 
 import { ATTRIBUTION, COUNTRIES, ProviderlessZone, lastHour, listCountries } from "./data.js";
 import { ZONES, measuredLastHour, zonesFor } from "./live.js";

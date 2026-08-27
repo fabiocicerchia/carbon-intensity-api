@@ -6,8 +6,8 @@
 // the store has none, and re-check a provider when a stored zone has gone
 // stale. Keep the served shapes identical to the objects the pipeline writes.
 //
-// Single source of truth: sync.sh computes the snapshot and writes data/. This
-// app SERVES that precomputed data (via `store`) and never recomputes it when a
+// Single source of truth: the pipeline runner computes the snapshot and writes
+// data/. This app SERVES that data (via `store`) and never recomputes it when a
 // snapshot exists. Responses are served verbatim, so a reading is byte-identical
 // whether it comes from here or straight out of the bucket.
 // If no precomputed file is available, it computes on demand as a fallback.

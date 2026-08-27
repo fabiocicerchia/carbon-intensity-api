@@ -138,9 +138,9 @@ export function lastHour(country, { measured = null, zone = null } = {}) {
   return {
     country: rec.name,
     country_code: code,
-    // Only zone readings carry one; a country reading's would just repeat
-    // country_code.
-    ...(zone ? { zone } : {}),
+    // A country reading's `zone` just repeats country_code, but it is always
+    // present so a client can read one field whether or not it asked for a zone.
+    zone: zone || code,
     hour_start: hourStart,
     hour_end: hourEnd,
     unit: "gCO2eq/kWh",
@@ -160,6 +160,9 @@ export function lastHour(country, { measured = null, zone = null } = {}) {
     basis,
     data_source: dataSource,
     data_year: rec.dataYear,
+    // Redundant with `basis` — kept because clients predate it and read this.
+    // Derived rather than set in both branches above, so the two cannot drift.
+    estimated: basis !== "measured",
     // Names the computation as ours. `data_source` says whose generation data
     // went in, and a reader could otherwise take the operator to have published
     // the intensity itself — which none of them did, and which EIA's API terms
@@ -177,6 +180,9 @@ export function listCountries() {
     .map(([code, rec]) => ({
       country_code: code,
       country: rec.name,
+      // Both echo constants — `zone` the country code, `source` the annual
+      // dataset — but they keep every entry the same shape as a reading.
+      zone: code,
       source: SOURCE,
       data_year: rec.dataYear,
       realtime_available: sourceFor(code).realtime,
