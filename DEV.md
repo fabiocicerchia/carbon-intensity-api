@@ -150,12 +150,24 @@ sits ahead of the cache, so it still counts requests that never touch the bucket
 
 ## Rate limiting
 
-A CDN/WAF **rate limiting rule** on `/v1/last-hour/*` and `/v1/zones/*`: 1
-request per 10 seconds per IP, action Block. There is no application code to put
-a limiter in, and the rule runs at the edge before the bucket is read.
+A CDN/WAF **rate limiting rule** in front of the bucket. There is no application
+code to put a limiter in, and the rule runs at the edge before the bucket is
+read, so it also protects against requests that would miss and cost an origin
+lookup.
+
+Match on the version prefixes — `/v1/` and `/v2/` — rather than enumerating
+routes. v2's paths are `/v2/<CODE>/<resource>`, so they share no resource prefix
+to match on, and picking them out by shape needs a regex operator not every plan
+offers.
+
+Pick the threshold from how a cold client behaves, not from the steady state:
+filling a history window on first boot takes several requests in quick
+succession, and a limit of one per interval turns that into minutes of stalling.
 
 Watch the provider's minimum counting period — some tie it to the plan, so a
-longer window can mean an upgrade rather than a config change.
+longer window can mean an upgrade rather than a config change. And check what a
+blocked request actually returns: it is usually the provider's own page, which
+is not JSON, so clients must check the status code before parsing.
 
 ## License
 
