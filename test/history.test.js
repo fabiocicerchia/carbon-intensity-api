@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { PRUNE_TAIL_DAYS, RETENTION_DAYS, historyPath, upsertDay, writeHistory } from "../src/history.js";
 import { hourlyMeans, lastHour } from "../src/data.js";
 import { newestReading } from "../src/live.js";
+import { writeV2 } from "../src/pipeline.js";
 
 // An in-memory store with the same {get, put, del} seam fsStore provides, so
 // the tests exercise the real read-modify-write path rather than a stub of it.
@@ -239,7 +240,39 @@ test("without a del the run neither throws nor prunes", async () => {
   assert.equal(expired in s.files, true);
 });
 
-// --- the v1 guard --------------------------------------------------------------
+// --- v2 coverage and the v1 guard ---------------------------------------------
+
+test("an annual-average country gets /yearly but no hourly routes", async () => {
+  const s = store();
+  await writeV2({ generated_at: "2026-08-27T12:00:00Z", series: { countries: {}, zones: {} } },
+    s.put, s.get, s.del);
+  assert.ok("v2/AF/yearly" in s.files);
+  assert.equal("v2/AF/past-hour" in s.files, false);
+  assert.equal("v2/AF/current-hour" in s.files, false);
+  // The bulk catalogue answers for every country, measured or not.
+  assert.equal(JSON.parse(s.files["v2/countries.json"]).count, 213);
+  // No bulk current-hour: partial hours are not comparable across providers.
+  assert.equal("v2/current-hour.json" in s.files, false);
+  assert.equal("v2/latest.json" in s.files, false);
+  assert.equal("v2/yearly.json" in s.files, false);
+});
+
+test("a past-hour object is removed once no complete hour remains", async () => {
+  const s = store();
+  const complete = quarterly([
+    pt("2026-08-27T06:00:00Z", 400), pt("2026-08-27T06:15:00Z", 300),
+    pt("2026-08-27T06:30:00Z", 200), pt("2026-08-27T06:45:00Z", 100),
+  ]);
+  await writeV2(snapshotOf({ IT: complete }), s.put, s.get, s.del);
+  assert.ok("v2/IT/past-hour" in s.files);
+  assert.equal(JSON.parse(s.files["v2/past-hour.json"]).count, 1);
+
+  // A later window holding only a partial hour: the stale complete hour must go
+  // rather than sit there looking current.
+  await writeV2(snapshotOf({ IT: quarterly([pt("2026-08-27T08:00:00Z", 400)]) }), s.put, s.get, s.del);
+  assert.equal("v2/IT/past-hour" in s.files, false);
+  assert.ok("v2/IT/current-hour" in s.files);
+});
 
 test("v1 still reads the newest point when a provider returns a whole window", () => {
   // The premise the v2 split rests on: widening the parsers must not move v1.
