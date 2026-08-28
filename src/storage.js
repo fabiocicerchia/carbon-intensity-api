@@ -21,5 +21,18 @@ export function fsStore(baseDir) {
       await mkdir(dirname(full), { recursive: true });
       await writeFile(full, body, "utf8");
     },
+    // Retention deletes expired history days. Swallowing the miss like `get`
+    // does keeps pruning idempotent: it is issued blind against a range of
+    // dates, most of which are already gone.
+    async del(path) {
+      const { unlink } = await import("node:fs/promises");
+      const { join } = await import("node:path");
+      try {
+        await unlink(join(baseDir, path));
+        return true;
+      } catch {
+        return false;
+      }
+    },
   };
 }

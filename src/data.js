@@ -3,9 +3,21 @@
 
 import COUNTRIES_RAW from "./datasets/countries.json" with { type: "json" };
 import SOURCES from "./datasets/sources.json" with { type: "json" };
-import { zonesFor } from "./live.js";
+import { pointsPerHour, zonesFor } from "./live.js";
 
 const SOURCE = "Ember; Energy Institute (via OWID)";
+
+// Names the computation as ours. `data_source` says whose generation data went
+// in, and a reader could otherwise take the operator to have published the
+// intensity itself — which none of them did, and which EIA's API terms
+// specifically forbid claiming ("you may not modify or falsely represent
+// content accessed through the API and still claim the source is the EIA").
+//
+// Hoisted out of lastHour() when v2's routes started emitting it too: three
+// copies of a legal notice is three chances for them to drift apart.
+export const METHODOLOGY = "Intensity computed by Carbon Intensity API from the data_source's "
+  + "published generation mix; IPCC AR6 lifecycle factors; ECON-PowerCI "
+  + "consumption accounting. Not published by, or endorsed by, the data source.";
 
 // Project attribution, embedded in the served JSON so consumers can trace the
 // data back to its home.
@@ -138,9 +150,9 @@ export function lastHour(country, { measured = null, zone = null } = {}) {
   return {
     country: rec.name,
     country_code: code,
-    // Only zone readings carry one; a country reading's would just repeat
-    // country_code.
-    ...(zone ? { zone } : {}),
+    // A country reading's `zone` just repeats country_code, but it is always
+    // present so a client can read one field whether or not it asked for a zone.
+    zone: zone || code,
     hour_start: hourStart,
     hour_end: hourEnd,
     unit: "gCO2eq/kWh",
@@ -160,14 +172,112 @@ export function lastHour(country, { measured = null, zone = null } = {}) {
     basis,
     data_source: dataSource,
     data_year: rec.dataYear,
-    // Names the computation as ours. `data_source` says whose generation data
-    // went in, and a reader could otherwise take the operator to have published
-    // the intensity itself — which none of them did, and which EIA's API terms
-    // specifically forbid claiming ("you may not modify or falsely represent
-    // content accessed through the API and still claim the source is the EIA").
-    methodology: "Intensity computed by Carbon Intensity API from the data_source's "
-      + "published generation mix; IPCC AR6 lifecycle factors; ECON-PowerCI "
-      + "consumption accounting. Not published by, or endorsed by, the data source.",
+    // Redundant with `basis` — kept because clients predate it and read this.
+    // Derived rather than set in both branches above, so the two cannot drift.
+    estimated: basis !== "measured",
+    methodology: METHODOLOGY,
+  };
+}
+
+// --- v2 -----------------------------------------------------------------------
+// v1 asks a provider for "the reading" and gets whatever point happened to be
+// newest. v2 asks for hours: `hourlyMeans` folds a provider series into per-UTC
+// -hour means, and the two routes below pick one of those hours.
+
+// -> [{ hour, direct, points, complete }], oldest first.
+export function hourlyMeans(series) {
+  if (!series || !series.points || series.points.length === 0) return [];
+  const expected = pointsPerHour(series.resolution_sec);
+  const byHour = new Map();
+  for (const p of series.points) {
+    // A point is assigned by where it STARTS: one starting 06:45 covers
+    // 06:45-07:00 and belongs to hour 06, not 07.
+    const hour = `${p.start.slice(0, 13)}:00:00Z`;
+    if (!byHour.has(hour)) byHour.set(hour, []);
+    byHour.get(hour).push(p.direct);
+  }
+  return [...byHour.keys()].sort().map((hour) => {
+    const vals = byHour.get(hour);
+    return {
+      hour,
+      direct: vals.reduce((a, b) => a + b, 0) / vals.length,
+      points: vals.length,
+      // Compared against the resolution of THIS series. Recomputed on every
+      // write rather than stored once per day, so a provider changing
+      // granularity part-way through a day cannot mislabel the hours before it.
+      complete: vals.length >= expected,
+    };
+  });
+}
+
+// The newest hour that holds all its points. Null when the window contains no
+// complete hour — the caller then writes nothing and the sync drops any stale
+// copy, the same "absence signals no data" rule zones already follow.
+export function pastHour(series) {
+  const means = hourlyMeans(series);
+  for (let i = means.length - 1; i >= 0; i -= 1) if (means[i].complete) return means[i];
+  return null;
+}
+
+// The newest hour with any data at all, complete or not. This is the one that
+// moves between runs as the rest of the hour arrives.
+export function currentHour(series) {
+  const means = hourlyMeans(series);
+  return means.length ? means[means.length - 1] : null;
+}
+
+// Build a v2 hourly document from one entry of hourlyMeans().
+export function hourDocument(country, mean, { series, zone = null } = {}) {
+  const code = resolveCode(country);
+  const rec = COUNTRIES[code];
+  const direct = Math.round(mean.direct);
+  const startMs = Date.parse(mean.hour);
+  return {
+    country: rec.name,
+    country_code: code,
+    zone: zone || code,
+    unit: "gCO2eq/kWh",
+    // Always a true clock hour, unlike v1's hour_start/hour_end which were one
+    // provider data point wide — 15 minutes for ENTSO-E — under hour-shaped names.
+    period_start: mean.hour,
+    period_end: new Date(startMs + 3600 * 1000).toISOString().replace(/\.\d{3}Z$/, "Z"),
+    resolution_sec: series.resolution_sec,
+    points: mean.points,
+    points_expected: pointsPerHour(series.resolution_sec),
+    complete: mean.complete,
+    direct,
+    lifecycle: direct + rec.lifecycleDelta,
+    ...(zone ? {} : {
+      consumption_direct: direct + rec.consumptionDelta,
+      consumption_lifecycle: direct + rec.consumptionDelta + rec.lifecycleDelta,
+    }),
+    basis: "measured",
+    data_source: { ...sourceFor(code), name: series.source ?? sourceFor(code).name },
+    data_year: rec.dataYear,
+    methodology: METHODOLOGY,
+  };
+}
+
+// The annual average as its own resource. Every country has one; no provider
+// needed. This is the figure v1 served from /last-hour with null hour bounds —
+// giving it an honestly-named route is the point of v2.
+export function yearlyDocument(country) {
+  const code = resolveCode(country);
+  const rec = COUNTRIES[code];
+  const direct = rec.direct;
+  return {
+    country: rec.name,
+    country_code: code,
+    unit: "gCO2eq/kWh",
+    basis: "annual-average",
+    data_year: rec.dataYear,
+    direct,
+    lifecycle: direct + rec.lifecycleDelta,
+    consumption_direct: direct + rec.consumptionDelta,
+    consumption_lifecycle: direct + rec.consumptionDelta + rec.lifecycleDelta,
+    estimated: true,
+    data_source: ANNUAL_SOURCE,
+    methodology: METHODOLOGY,
   };
 }
 
@@ -177,6 +287,9 @@ export function listCountries() {
     .map(([code, rec]) => ({
       country_code: code,
       country: rec.name,
+      // Both echo constants — `zone` the country code, `source` the annual
+      // dataset — but they keep every entry the same shape as a reading.
+      zone: code,
       source: SOURCE,
       data_year: rec.dataYear,
       realtime_available: sourceFor(code).realtime,

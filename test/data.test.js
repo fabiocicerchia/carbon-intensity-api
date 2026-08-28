@@ -45,6 +45,19 @@ test("annual reading shape", () => {
   assert.match(r.data_source.name, /Ember/);
 });
 
+test("estimated tracks basis; zone is always present", () => {
+  const measured = { direct: 90, hour_start: "2026-08-08T13:00:00Z", hour_end: "2026-08-08T14:00:00Z", source: "ENTSO-E" };
+  // `estimated` is derived from `basis`, so the two cannot disagree — which is
+  // the only reason it is safe to publish both.
+  const annual = lastHour("DE");
+  assert.equal(annual.estimated, true);
+  assert.equal(annual.zone, "DE"); // country reading: echoes country_code
+  const live = lastHour("DE", { measured });
+  assert.equal(live.estimated, false);
+  assert.equal(lastHour("IT", { zone: "SICI", measured }).zone, "SICI");
+  assert.equal(listCountries().find((c) => c.country_code === "DE").zone, "DE");
+});
+
 test("measured reading uses provider values + deltas", () => {
   const rec = COUNTRIES.DE;
   const r = lastHour("DE", {

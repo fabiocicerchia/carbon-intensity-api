@@ -2,6 +2,19 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as live from "../src/live.js";
 
+// Every parser now returns a series; v1 is defined as its newest point. Reading
+// the existing assertions through `v1()` keeps them as the guard that widening
+// the parsers did not move the v1 objects.
+const hourly = (direct) => ({
+  resolution_sec: 3600,
+  points: [{ start: "2026-08-08T01:00:00Z", end: "2026-08-08T02:00:00Z", direct }],
+});
+
+const v1 = (s) => {
+  const r = live.newestReading(s);
+  return [r.hour_start, r.hour_end, r.direct];
+};
+
 const approx = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) < Math.max(eps, Math.abs(b) * 1e-4), `${a} ≈ ${b}`);
 
 // --- ENTSO-E ---
@@ -34,10 +47,84 @@ const ENTSOE_XML = `<?xml version="1.0"?>
 </GL_MarketDocument>`;
 
 test("parseEntsoe: latest interval, load series ignored", () => {
-  const [hs, he, direct] = live.parseEntsoe(ENTSOE_XML);
+  const [hs, he, direct] = v1(live.parseEntsoe(ENTSOE_XML));
   approx(direct, 470000 / 1500);
   assert.equal(hs, "2026-08-08T13:00:00Z");
   assert.equal(he, "2026-08-08T14:00:00Z");
+});
+
+test("parseEntsoe: every point is returned, not just the newest", () => {
+  const s = live.parseEntsoe(ENTSOE_XML);
+  assert.equal(s.resolution_sec, 3600);
+  assert.equal(s.points.length, 2);
+  // Position 1 was being discarded entirely: gas 800 + solar 400.
+  approx(s.points[0].direct, (800 * 470) / 1200);
+  assert.equal(s.points[0].start, "2026-08-08T12:00:00Z");
+  assert.equal(s.points[0].end, "2026-08-08T13:00:00Z");
+  approx(s.points[1].direct, 470000 / 1500);
+  // Oldest first, so the newest point is the last one.
+  assert.ok(s.points[0].start < s.points[1].start);
+});
+
+// PT15M: the resolution Italy actually publishes at, and the reason an hourly
+// mean was not computable before — four points per hour, one kept.
+const ENTSOE_15M = `<?xml version="1.0"?>
+<GL_MarketDocument xmlns="urn:x">
+  <TimeSeries>
+    <inBiddingZone_Domain.mRID>10Y</inBiddingZone_Domain.mRID>
+    <MktPSRType><psrType>B04</psrType></MktPSRType>
+    <Period><timeInterval><start>2026-08-08T12:00Z</start><end>2026-08-08T13:00Z</end></timeInterval>
+      <resolution>PT15M</resolution>
+      <Point><position>1</position><quantity>1000</quantity></Point>
+      <Point><position>2</position><quantity>1000</quantity></Point>
+      <Point><position>3</position><quantity>1000</quantity></Point>
+      <Point><position>4</position><quantity>1000</quantity></Point></Period>
+  </TimeSeries>
+  <TimeSeries>
+    <inBiddingZone_Domain.mRID>10Y</inBiddingZone_Domain.mRID>
+    <MktPSRType><psrType>B16</psrType></MktPSRType>
+    <Period><timeInterval><start>2026-08-08T12:00Z</start><end>2026-08-08T13:00Z</end></timeInterval>
+      <resolution>PT15M</resolution>
+      <Point><position>1</position><quantity>0</quantity></Point>
+      <Point><position>2</position><quantity>1000</quantity></Point>
+      <Point><position>3</position><quantity>3000</quantity></Point>
+      <Point><position>4</position><quantity>1000</quantity></Point></Period>
+  </TimeSeries>
+</GL_MarketDocument>`;
+
+test("parseEntsoe: PT15M yields four points with the mix summed per position", () => {
+  const s = live.parseEntsoe(ENTSOE_15M);
+  assert.equal(s.resolution_sec, 900);
+  assert.equal(live.pointsPerHour(s.resolution_sec), 4);
+  assert.equal(s.points.length, 4);
+  assert.deepEqual(s.points.map((p) => p.start), [
+    "2026-08-08T12:00:00Z", "2026-08-08T12:15:00Z",
+    "2026-08-08T12:30:00Z", "2026-08-08T12:45:00Z",
+  ]);
+  assert.equal(s.points[0].end, "2026-08-08T12:15:00Z");
+  // Solar rises across the hour, so intensity falls — the whole point of
+  // keeping every position rather than the last.
+  approx(s.points[0].direct, 470);                       // 1000 gas, no solar
+  approx(s.points[1].direct, (1000 * 470) / 2000);
+  approx(s.points[2].direct, (1000 * 470) / 4000);
+  approx(s.points[3].direct, (1000 * 470) / 2000);
+  // The hour's true mean, and the number v1 reported for the same hour by
+  // keeping only the last point. 264.375 vs 235 — a 12% error, which is what
+  // taking a sample for a mean costs.
+  const mean = s.points.reduce((a, p) => a + p.direct, 0) / 4;
+  approx(mean, 264.375);
+  approx(s.points[3].direct, 235);
+});
+
+test("parseEntsoe: a point with nothing usable is skipped, not zero-filled", () => {
+  const s = live.parseEntsoe(ENTSOE_15M.replace(
+    "<Point><position>1</position><quantity>1000</quantity></Point>\n      <Point><position>2</position><quantity>1000</quantity></Point>",
+    "<Point><position>2</position><quantity>1000</quantity></Point>",
+  ));
+  // Position 1 now has only solar (0 MW) -> no usable generation -> dropped,
+  // and the remaining positions keep their own instants rather than shifting up.
+  assert.equal(s.points.length, 3);
+  assert.equal(s.points[0].start, "2026-08-08T12:15:00Z");
 });
 
 // --- EIA ---
@@ -49,20 +136,90 @@ const EIA_JSON = { response: { data: [
 ] } };
 
 test("parseEia: latest period only", () => {
-  const [hs, he, direct] = live.parseEia(EIA_JSON);
+  const [hs, he, direct] = v1(live.parseEia(EIA_JSON));
   approx(direct, 1370000 / 2500);
   assert.equal(hs, "2026-08-08T13:00:00Z");
   assert.equal(he, "2026-08-08T14:00:00Z");
 });
 
+test("parseEia: one point per period, hourly, ascending", () => {
+  const s = live.parseEia(EIA_JSON);
+  assert.equal(s.resolution_sec, 3600);
+  assert.equal(live.pointsPerHour(s.resolution_sec), 1); // an hourly feed fills an hour with one point
+  assert.equal(s.points.length, 2);
+  assert.deepEqual(s.points.map((p) => p.start), ["2026-08-08T12:00:00Z", "2026-08-08T13:00:00Z"]);
+  approx(s.points[0].direct, 900); // the 12:00 row: 50000 MW of coal alone
+});
+
+test("parseIeso: every reporting hour is a point", () => {
+  const s = live.parseIeso(ieso("2026-08-15", [
+    ["NUCLEAR", [[5, 9000], [6, 9000]]],
+    ["GAS", [[5, 1000], [6, 2000]]],
+  ]));
+  assert.equal(s.resolution_sec, 3600);
+  assert.equal(s.points.length, 2);
+  assert.equal(s.points[0].start, "2026-08-15T08:00:00Z");
+  assert.equal(s.points[1].start, "2026-08-15T09:00:00Z");
+  approx(s.points[0].direct, (1000 * 470) / 10000);
+  approx(s.points[1].direct, (2000 * 470) / 11000);
+});
+
+test("a snapshot provider reports one point covering its clock hour", () => {
+  // OpenNEM/EMC/Eskom/ONS give one value per fetch, so resolution_sec is 3600
+  // and that point stands for the whole hour. Declaring their true sub-hourly
+  // granularity would leave every hour permanently incomplete instead.
+  for (const s of [live.parseOpennem(OPENNEM_JSON), live.parseSg(SG_JSON), live.parseEskomCsv(ESKOM_CSV), live.parseOns(ONS_JSON)]) {
+    assert.equal(s.resolution_sec, 3600);
+    assert.equal(s.points.length, 1);
+    const p = s.points[0];
+    assert.ok(p.start.endsWith("00:00Z"), p.start);
+    assert.equal(Date.parse(p.end) - Date.parse(p.start), 3600 * 1000);
+  }
+});
+
 // --- UK NESO ---
 test("parseUk: uses actual then forecast", () => {
-  const [hs, he, d] = live.parseUk({ data: [{ from: "2026-08-08T13:00Z", to: "2026-08-08T13:30Z", intensity: { forecast: 120, actual: 133 } }] });
+  const [hs, he, d] = v1(live.parseUk({ data: [{ from: "2026-08-08T13:00Z", to: "2026-08-08T13:30Z", intensity: { forecast: 120, actual: 133 } }] }));
   assert.equal(d, 133);
   assert.equal(hs, "2026-08-08T13:00:00Z");
   assert.equal(he, "2026-08-08T13:30:00Z");
-  const [, , d2] = live.parseUk({ data: [{ from: "2026-08-08T13:00Z", to: "2026-08-08T13:30Z", intensity: { forecast: 99, actual: null } }] });
+  const [, , d2] = v1(live.parseUk({ data: [{ from: "2026-08-08T13:00Z", to: "2026-08-08T13:30Z", intensity: { forecast: 99, actual: null } }] }));
   assert.equal(d2, 99);
+});
+
+test("parseUk: the day feed completes an hour the current period cannot", () => {
+  // /intensity is one period; the settled day feed carries the other half. The
+  // real payloads: the day feed lags a period and its tail is future forecasts.
+  const now = { data: [{ from: "2026-08-27T09:30Z", to: "2026-08-27T10:00Z", intensity: { forecast: 127, actual: 126 } }] };
+  const dayFeed = { data: [
+    { from: "2026-08-27T08:30Z", to: "2026-08-27T09:00Z", intensity: { forecast: 120, actual: 118 } },
+    { from: "2026-08-27T09:00Z", to: "2026-08-27T09:30Z", intensity: { forecast: 124, actual: 130 } },
+    { from: "2026-08-27T09:30Z", to: "2026-08-27T10:00Z", intensity: { forecast: 127, actual: null } },
+    { from: "2026-08-27T22:30Z", to: "2026-08-27T23:00Z", intensity: { forecast: 208, actual: null } },
+  ] };
+  const s = live.parseUk(now, dayFeed);
+  assert.equal(s.resolution_sec, 1800);
+  assert.equal(live.pointsPerHour(s.resolution_sec), 2);
+  // The 22:30 forecast is 12 hours in the future and must never appear.
+  assert.deepEqual(s.points.map((p) => p.start), [
+    "2026-08-27T08:30:00Z", "2026-08-27T09:00:00Z", "2026-08-27T09:30:00Z",
+  ]);
+  // The day feed had no actual for 09:30; the current period supplies it, and
+  // keying by start means it replaces rather than duplicates.
+  assert.equal(s.points[2].direct, 126);
+  // v1 still reads the current period, unchanged by the widening.
+  assert.deepEqual(v1(s), ["2026-08-27T09:30:00Z", "2026-08-27T10:00:00Z", 126]);
+  // Hour 09 now holds both of its halves, which is what lets it complete:
+  // two points is exactly pointsPerHour(1800).
+  const hour09 = s.points.filter((p) => p.start.startsWith("2026-08-27T09"));
+  assert.equal(hour09.length, live.pointsPerHour(s.resolution_sec));
+  assert.equal(hour09.reduce((a, p) => a + p.direct, 0) / hour09.length, 128);
+});
+
+test("parseUk: without the day feed it degrades to the single period", () => {
+  const s = live.parseUk({ data: [{ from: "2026-08-27T09:30Z", to: "2026-08-27T10:00Z", intensity: { actual: 126 } }] });
+  assert.equal(s.points.length, 1);
+  assert.deepEqual(v1(s), ["2026-08-27T09:30:00Z", "2026-08-27T10:00:00Z", 126]);
 });
 
 // --- ONS ---
@@ -75,7 +232,7 @@ const ONS_JSON = {
 };
 
 test("parseOns: sums regions + hydro, blends thermal", () => {
-  const [hs, he, direct] = live.parseOns(ONS_JSON);
+  const [hs, he, direct] = v1(live.parseOns(ONS_JSON));
   const total = 24000 + 2500 + 4 + 1800 + 3 + 6800 + 9000 + 800 + 1300 + 1900 + 2700 + 2800 + 9800 + 1300 + 150;
   approx(direct, (2500 + 800 + 2700 + 1300) * 550 / total);
   assert.equal(hs, "2026-08-08T16:00:00Z");
@@ -91,14 +248,14 @@ const OPENNEM_JSON = { data: [
 ] };
 
 test("parseOpennem: latest interval, storage skipped", () => {
-  const [hs, he, direct] = live.parseOpennem(OPENNEM_JSON);
+  const [hs, he, direct] = v1(live.parseOpennem(OPENNEM_JSON));
   approx(direct, 5400 * 900 / (5400 + 1200));
   assert.equal(hs, "2026-08-08T01:00:00Z");
   assert.equal(he, "2026-08-08T02:00:00Z");
 });
 
 test("parseOpennem: trailing nulls skipped", () => {
-  const [, , d] = live.parseOpennem({ data: [{ type: "power", fuel_tech: "coal_black", history: { start: "2026-08-08T10:00:00+10:00", interval: "30m", data: [5000, 5400, null] } }] });
+  const [, , d] = v1(live.parseOpennem({ data: [{ type: "power", fuel_tech: "coal_black", history: { start: "2026-08-08T10:00:00+10:00", interval: "30m", data: [5000, 5400, null] } }] }));
   approx(d, 900);
 });
 
@@ -112,7 +269,7 @@ const SG_JSON = {
 };
 
 test("parseSg: shares applied to generation", () => {
-  const [hs, he, direct] = live.parseSg(SG_JSON);
+  const [hs, he, direct] = v1(live.parseSg(SG_JSON));
   const gen = 6100;
   approx(direct, (0.96 * gen * 470 + 0.04 * gen * 550) / gen);
   assert.equal(hs, "2026-08-08T05:00:00Z");
@@ -128,7 +285,7 @@ const ESKOM_CSV = `Date_Time_Hour_Beginning,${cols.join(",")}\n`
   + `2026-08-08 13:00:00,${ESKOM_LATEST.join(",")}\n`;
 
 test("parseEskomCsv: latest row + index mapping", () => {
-  const [hs, he, direct] = live.parseEskomCsv(ESKOM_CSV);
+  const [hs, he, direct] = v1(live.parseEskomCsv(ESKOM_CSV));
   const total = 25000 + 1800 + 300 + 50 + 600 + 2500 + 1600 + 50;
   approx(direct, (25000 * 900 + 300 * 720 + 50 * 470) / total);
   assert.equal(hs, "2026-08-08T11:00:00Z");
@@ -146,8 +303,14 @@ test("providerFor routing", () => {
 });
 
 test("measuredLastHour: injected fetchers", async () => {
-  const out = await live.measuredLastHour("FR", { fetchers: { "ENTSO-E": async () => ["2026-08-08T13:00:00Z", "2026-08-08T14:00:00Z", 313.3] } });
-  assert.deepEqual(out, { direct: 313.3, hour_start: "2026-08-08T13:00:00Z", hour_end: "2026-08-08T14:00:00Z", source: "ENTSO-E" });
+  const point = { start: "2026-08-08T13:00:00Z", end: "2026-08-08T14:00:00Z", direct: 313.3 };
+  const out = await live.measuredLastHour("FR", {
+    fetchers: { "ENTSO-E": async () => ({ resolution_sec: 3600, points: [point] }) },
+  });
+  assert.deepEqual(out, { resolution_sec: 3600, points: [point], source: "ENTSO-E" });
+  assert.deepEqual(live.newestReading(out), {
+    direct: 313.3, hour_start: "2026-08-08T13:00:00Z", hour_end: "2026-08-08T14:00:00Z", source: "ENTSO-E",
+  });
 });
 
 test("measuredLastHour: null for uncovered / failure", async () => {
@@ -160,10 +323,10 @@ test("parseOpennem: series aligned by timestamp, not array position", () => {
   // Rooftop solar starts an hour earlier and runs longer, so position 3 means a
   // different instant in each series. Aligning by index reads coal at an index
   // past the end of its array and reports solar alone.
-  const [hs, , direct] = live.parseOpennem({ data: [
+  const [hs, , direct] = v1(live.parseOpennem({ data: [
     { type: "power", fuel_tech: "solar_rooftop", history: { start: "2026-08-08T09:00:00+10:00", interval: "30m", data: [0, 0, 100, 200] } },
     { type: "power", fuel_tech: "coal_black", history: { start: "2026-08-08T10:00:00+10:00", interval: "30m", data: [5000, 5400] } },
-  ] });
+  ] }));
   // Newest instant both cover is 10:30+10:00 = 00:30Z: coal 5400, solar 200.
   approx(direct, 5400 * 900 / (5400 + 200));
   assert.equal(hs, "2026-08-08T00:00:00Z");
@@ -179,9 +342,9 @@ test("measuredLastHour: unknown zone is null, known zone reaches provider", asyn
   assert.equal(await live.measuredLastHour("IT", { zone: "NOPE", fetchers: {} }), null);
   const r = await live.measuredLastHour("AU", {
     zone: "SA1",
-    fetchers: { OpenNEM: async () => ["2026-08-08T01:00:00Z", "2026-08-08T02:00:00Z", 120] },
+    fetchers: { OpenNEM: async () => hourly(120) },
   });
-  assert.equal(r.direct, 120);
+  assert.equal(live.newestReading(r).direct, 120);
 });
 
 test("measuredLastHour: retries a transient failure, gives up after attempts", async () => {
@@ -189,10 +352,10 @@ test("measuredLastHour: retries a transient failure, gives up after attempts", a
   const flaky = async () => {
     calls += 1;
     if (calls < 3) throw new Error("blip");
-    return ["2026-08-08T01:00:00Z", "2026-08-08T02:00:00Z", 120];
+    return hourly(120);
   };
   const r = await live.measuredLastHour("AU", { zone: "SA1", attempts: 3, backoffMs: 1, fetchers: { OpenNEM: flaky } });
-  assert.equal(r.direct, 120);
+  assert.equal(live.newestReading(r).direct, 120);
   assert.equal(calls, 3);
 
   calls = 0;
@@ -217,7 +380,7 @@ const IESO_XML = ieso("2026-08-15", [
 ]);
 
 test("parseIeso: latest reporting hour, EDT hour-ending mapped to UTC", () => {
-  const [hs, he, direct] = live.parseIeso(IESO_XML);
+  const [hs, he, direct] = v1(live.parseIeso(IESO_XML));
   approx(direct, (1000 * 470) / 10600); // only the gas carries carbon
   // Hour 5 ends 05:00 in Toronto; August is EDT (UTC-4).
   assert.equal(hs, "2026-08-15T08:00:00Z");
@@ -225,7 +388,7 @@ test("parseIeso: latest reporting hour, EDT hour-ending mapped to UTC", () => {
 });
 
 test("parseIeso: winter reading uses EST, not a fixed offset", () => {
-  const [hs, he] = live.parseIeso(ieso("2026-01-15", [["GAS", [[5, 1000]]]]));
+  const [hs, he] = v1(live.parseIeso(ieso("2026-01-15", [["GAS", [[5, 1000]]]])));
   assert.equal(hs, "2026-01-15T09:00:00Z");
   assert.equal(he, "2026-01-15T10:00:00Z");
 });
