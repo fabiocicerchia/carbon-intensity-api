@@ -96,7 +96,9 @@ test("sources registry: shape + proposed + none", () => {
   const al = sourceFor("AL");
   assert.equal(al.realtime, true);
   assert.equal(al.status, "proposed");
-  assert.ok(al.ref && al.ref.includes("github.com"));
+  // Host-checked rather than substring-matched: `.includes("github.com")` is
+  // also true of "github.com.example.net" (CodeQL js/incomplete-url-substring-sanitization).
+  assert.ok(al.ref && new URL(al.ref).hostname === "github.com");
   assert.equal(sourceFor("MX").realtime, false);
   assert.equal(sourceFor("AF").realtime, false);
 });

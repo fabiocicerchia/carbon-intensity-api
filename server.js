@@ -19,8 +19,13 @@ const server = createServer(async (req, res) => {
     res.writeHead(response.status, Object.fromEntries(response.headers));
     res.end(await response.text());
   } catch (err) {
+    // The error text goes to the log, not to the caller. String(err) carries a
+    // stack frame and the filesystem paths in it, which describes the
+    // deployment to anyone who can provoke a 500 and gives them back nothing
+    // they are owed (CodeQL js/stack-trace-exposure).
+    console.error("carbon-intensity-api: unhandled request error:", err);
     res.writeHead(500, { "content-type": "application/json" });
-    res.end(JSON.stringify({ detail: String(err) }));
+    res.end(JSON.stringify({ detail: "Internal error." }));
   }
 });
 
