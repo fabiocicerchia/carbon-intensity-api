@@ -15,9 +15,10 @@ const SOURCE = "Ember; Energy Institute (via OWID)";
 //
 // Hoisted out of lastHour() when v2's routes started emitting it too: three
 // copies of a legal notice is three chances for them to drift apart.
-export const METHODOLOGY = "Intensity computed by Carbon Intensity API from the data_source's "
-  + "published generation mix; IPCC AR6 lifecycle factors; ECON-PowerCI "
-  + "consumption accounting. Not published by, or endorsed by, the data source.";
+export const METHODOLOGY =
+  "Intensity computed by Carbon Intensity API from the data_source's " +
+  "published generation mix; IPCC AR6 lifecycle factors; ECON-PowerCI " +
+  "consumption accounting. Not published by, or endorsed by, the data source.";
 
 // Project attribution, embedded in the served JSON so consumers can trace the
 // data back to its home.
@@ -38,16 +39,54 @@ function modelledLifecycleDelta(direct) {
 // Curated (lifecycle_delta, consumption_delta) over the operational `direct`
 // value, for the subset with IPCC AR6 / documented trade figures.
 const CURATED_DELTAS = {
-  AT: [48, 80], AU: [40, 40], BE: [27, 67], BG: [50, 35], BR: [25, 27],
-  CA: [35, 40], CH: [35, 140], CL: [45, 45], CN: [45, 40], CZ: [50, 20],
-  DE: [50, 40], DK: [35, 65], EE: [50, 20], ES: [40, 50], FI: [40, 80],
-  FR: [34, 44], GB: [40, 55], GR: [50, 45], HU: [45, 80], IE: [45, 45],
-  IN: [50, 45], IT: [45, 65], JP: [45, 45], KR: [45, 45], LT: [45, 130],
-  LV: [40, 140], MX: [45, 45], NL: [45, 60], NO: [30, 65], NZ: [35, 35],
-  PL: [50, 30], PT: [40, 60], RO: [45, 60], RS: [50, 30], SE: [30, 70],
-  SG: [40, 40], SI: [45, 70], SK: [45, 100], TR: [45, 45], TW: [45, 45],
-  UA: [50, 45], US: [45, 45], ZA: [45, 45], IS: [32, 32], HR: [45, 100],
-  LU: [40, 230], AR: [45, 45], AE: [45, 45],
+  AT: [48, 80],
+  AU: [40, 40],
+  BE: [27, 67],
+  BG: [50, 35],
+  BR: [25, 27],
+  CA: [35, 40],
+  CH: [35, 140],
+  CL: [45, 45],
+  CN: [45, 40],
+  CZ: [50, 20],
+  DE: [50, 40],
+  DK: [35, 65],
+  EE: [50, 20],
+  ES: [40, 50],
+  FI: [40, 80],
+  FR: [34, 44],
+  GB: [40, 55],
+  GR: [50, 45],
+  HU: [45, 80],
+  IE: [45, 45],
+  IN: [50, 45],
+  IT: [45, 65],
+  JP: [45, 45],
+  KR: [45, 45],
+  LT: [45, 130],
+  LV: [40, 140],
+  MX: [45, 45],
+  NL: [45, 60],
+  NO: [30, 65],
+  NZ: [35, 35],
+  PL: [50, 30],
+  PT: [40, 60],
+  RO: [45, 60],
+  RS: [50, 30],
+  SE: [30, 70],
+  SG: [40, 40],
+  SI: [45, 70],
+  SK: [45, 100],
+  TR: [45, 45],
+  TW: [45, 45],
+  UA: [50, 45],
+  US: [45, 45],
+  ZA: [45, 45],
+  IS: [32, 32],
+  HR: [45, 100],
+  LU: [40, 230],
+  AR: [45, 45],
+  AE: [45, 45],
 };
 
 // Build the country table keyed by ISO2.
@@ -158,17 +197,19 @@ export function lastHour(country, { measured = null, zone = null } = {}) {
     unit: "gCO2eq/kWh",
     direct,
     lifecycle: direct + rec.lifecycleDelta,
-    ...(zone ? {} : {
-      consumption_direct: direct + rec.consumptionDelta,
-      // The fourth cell. Both deltas are defined over the operational value and
-      // describe different things — upstream emissions per kWh generated, and
-      // the trade adjustment to operational intensity — so summing them is not
-      // double counting. The assumption is that imported power carries a
-      // similar upstream intensity per kWh to domestic generation, since the
-      // uplift is derived from the domestic mix and applied to the consumed
-      // one. The most modelled of the four, and the one to report.
-      consumption_lifecycle: direct + rec.consumptionDelta + rec.lifecycleDelta,
-    }),
+    ...(zone
+      ? {}
+      : {
+          consumption_direct: direct + rec.consumptionDelta,
+          // The fourth cell. Both deltas are defined over the operational value and
+          // describe different things — upstream emissions per kWh generated, and
+          // the trade adjustment to operational intensity — so summing them is not
+          // double counting. The assumption is that imported power carries a
+          // similar upstream intensity per kWh to domestic generation, since the
+          // uplift is derived from the domestic mix and applied to the consumed
+          // one. The most modelled of the four, and the one to report.
+          consumption_lifecycle: direct + rec.consumptionDelta + rec.lifecycleDelta,
+        }),
     basis,
     data_source: dataSource,
     data_year: rec.dataYear,
@@ -247,10 +288,12 @@ export function hourDocument(country, mean, { series, zone = null } = {}) {
     complete: mean.complete,
     direct,
     lifecycle: direct + rec.lifecycleDelta,
-    ...(zone ? {} : {
-      consumption_direct: direct + rec.consumptionDelta,
-      consumption_lifecycle: direct + rec.consumptionDelta + rec.lifecycleDelta,
-    }),
+    ...(zone
+      ? {}
+      : {
+          consumption_direct: direct + rec.consumptionDelta,
+          consumption_lifecycle: direct + rec.consumptionDelta + rec.lifecycleDelta,
+        }),
     basis: "measured",
     data_source: { ...sourceFor(code), name: series.source ?? sourceFor(code).name },
     data_year: rec.dataYear,

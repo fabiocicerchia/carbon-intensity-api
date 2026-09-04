@@ -1,7 +1,7 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import { PRUNE_TAIL_DAYS, RETENTION_DAYS, historyPath, upsertDay, writeHistory } from "../src/history.js";
+import { test } from "node:test";
 import { hourlyMeans, lastHour } from "../src/data.js";
+import { historyPath, PRUNE_TAIL_DAYS, RETENTION_DAYS, upsertDay, writeHistory } from "../src/history.js";
 import { newestReading } from "../src/live.js";
 import { writeV2 } from "../src/pipeline.js";
 
@@ -11,7 +11,9 @@ function store() {
   const files = {};
   return {
     files,
-    put: async (p, b) => { files[p] = b; },
+    put: async (p, b) => {
+      files[p] = b;
+    },
     get: async (p) => files[p] ?? null,
     del: async (p) => (p in files ? (delete files[p], true) : false),
   };
@@ -37,12 +39,18 @@ const snapshotOf = (series, generated_at = "2026-08-27T12:10:00Z") => ({
 
 test("four points in an hour become its mean, marked complete", async () => {
   const s = store();
-  await writeHistory(snapshotOf({
-    IT: quarterly([
-      pt("2026-08-27T06:00:00Z", 400), pt("2026-08-27T06:15:00Z", 300),
-      pt("2026-08-27T06:30:00Z", 200), pt("2026-08-27T06:45:00Z", 100),
-    ]),
-  }), s.put, s.get);
+  await writeHistory(
+    snapshotOf({
+      IT: quarterly([
+        pt("2026-08-27T06:00:00Z", 400),
+        pt("2026-08-27T06:15:00Z", 300),
+        pt("2026-08-27T06:30:00Z", 200),
+        pt("2026-08-27T06:45:00Z", 100),
+      ]),
+    }),
+    s.put,
+    s.get,
+  );
   const d = day(s.files, "IT", "2026-08-27");
   assert.equal(d.direct[6], 250);
   assert.equal(d.points[6], 4);
@@ -51,12 +59,17 @@ test("four points in an hour become its mean, marked complete", async () => {
 
 test("a partial hour averages what arrived and says so", async () => {
   const s = store();
-  await writeHistory(snapshotOf({
-    IT: quarterly([
-      pt("2026-08-27T06:00:00Z", 400), pt("2026-08-27T06:15:00Z", 300),
-      pt("2026-08-27T06:30:00Z", 200),
-    ]),
-  }), s.put, s.get);
+  await writeHistory(
+    snapshotOf({
+      IT: quarterly([
+        pt("2026-08-27T06:00:00Z", 400),
+        pt("2026-08-27T06:15:00Z", 300),
+        pt("2026-08-27T06:30:00Z", 200),
+      ]),
+    }),
+    s.put,
+    s.get,
+  );
   const d = day(s.files, "IT", "2026-08-27");
   assert.equal(d.direct[6], 300); // mean of the three seen, not of four
   assert.equal(d.points[6], 3);
@@ -75,9 +88,13 @@ test("an hourly provider fills an hour with one point", async () => {
 
 test("a missing hour is null and present, never omitted", async () => {
   const s = store();
-  await writeHistory(snapshotOf({
-    IT: quarterly([pt("2026-08-27T02:00:00Z", 400), pt("2026-08-27T05:00:00Z", 200)]),
-  }), s.put, s.get);
+  await writeHistory(
+    snapshotOf({
+      IT: quarterly([pt("2026-08-27T02:00:00Z", 400), pt("2026-08-27T05:00:00Z", 200)]),
+    }),
+    s.put,
+    s.get,
+  );
   const d = day(s.files, "IT", "2026-08-27");
   for (const key of ["direct", "lifecycle", "consumption_direct", "consumption_lifecycle", "points", "complete"]) {
     assert.equal(d[key].length, 6, key);
@@ -98,11 +115,15 @@ test("today is truncated at the last known hour, never padded to 24", async () =
 
 test("a late point for an earlier hour never truncates the later ones", () => {
   const seeded = upsertDay(null, hourlyMeans(quarterly([pt("2026-08-27T19:00:00Z", 400)])), {
-    code: "IT", date: "2026-08-27", generatedAt: "t",
+    code: "IT",
+    date: "2026-08-27",
+    generatedAt: "t",
   });
   assert.equal(seeded.direct.length, 20);
   const after = upsertDay(JSON.stringify(seeded), hourlyMeans(quarterly([pt("2026-08-27T05:00:00Z", 100)])), {
-    code: "IT", date: "2026-08-27", generatedAt: "t",
+    code: "IT",
+    date: "2026-08-27",
+    generatedAt: "t",
   });
   assert.equal(after.direct.length, 20);
   assert.equal(after.direct[5], 100);
@@ -118,8 +139,10 @@ test("an hour seen again with more points takes the newer mean", async () => {
   assert.equal(day(s.files, "IT", "2026-08-27").direct[6], 350);
 
   const full = quarterly([
-    pt("2026-08-27T06:00:00Z", 400), pt("2026-08-27T06:15:00Z", 300),
-    pt("2026-08-27T06:30:00Z", 200), pt("2026-08-27T06:45:00Z", 100),
+    pt("2026-08-27T06:00:00Z", 400),
+    pt("2026-08-27T06:15:00Z", 300),
+    pt("2026-08-27T06:30:00Z", 200),
+    pt("2026-08-27T06:45:00Z", 100),
   ]);
   await writeHistory(snapshotOf({ IT: full }), s.put, s.get);
   const d = day(s.files, "IT", "2026-08-27");
@@ -129,12 +152,21 @@ test("an hour seen again with more points takes the newer mean", async () => {
 
 test("a window spanning midnight writes both days", async () => {
   const s = store();
-  await writeHistory(snapshotOf({
-    IT: quarterly([
-      pt("2026-08-27T23:30:00Z", 400), pt("2026-08-27T23:45:00Z", 420),
-      pt("2026-08-28T00:00:00Z", 300), pt("2026-08-28T00:15:00Z", 310),
-    ]),
-  }, "2026-08-28T00:20:00Z"), s.put, s.get);
+  await writeHistory(
+    snapshotOf(
+      {
+        IT: quarterly([
+          pt("2026-08-27T23:30:00Z", 400),
+          pt("2026-08-27T23:45:00Z", 420),
+          pt("2026-08-28T00:00:00Z", 300),
+          pt("2026-08-28T00:15:00Z", 310),
+        ]),
+      },
+      "2026-08-28T00:20:00Z",
+    ),
+    s.put,
+    s.get,
+  );
   assert.equal(day(s.files, "IT", "2026-08-27").direct[23], 410);
   assert.equal(day(s.files, "IT", "2026-08-28").direct[0], 305);
 });
@@ -142,8 +174,10 @@ test("a window spanning midnight writes both days", async () => {
 test("a closed day is left byte-identical on a later run", async () => {
   const s = store();
   const series = quarterly([
-    pt("2026-08-27T06:00:00Z", 400), pt("2026-08-27T06:15:00Z", 300),
-    pt("2026-08-27T06:30:00Z", 200), pt("2026-08-27T06:45:00Z", 100),
+    pt("2026-08-27T06:00:00Z", 400),
+    pt("2026-08-27T06:15:00Z", 300),
+    pt("2026-08-27T06:30:00Z", 200),
+    pt("2026-08-27T06:45:00Z", 100),
   ]);
   const first = await writeHistory(snapshotOf({ IT: series }), s.put, s.get);
   assert.equal(first.written, 1);
@@ -166,9 +200,13 @@ test("completeness is fixed per hour, so a resolution change cannot rewrite hist
   // Afternoon: the provider switches to quarter-hourly. Hour 5 keeps its own
   // verdict; a client deriving completeness from one day-level constant would
   // now read it as 1-of-4 and wrongly call it partial.
-  await writeHistory(snapshotOf({
-    IT: quarterly([pt("2026-08-27T14:00:00Z", 200), pt("2026-08-27T14:15:00Z", 200)]),
-  }), s.put, s.get);
+  await writeHistory(
+    snapshotOf({
+      IT: quarterly([pt("2026-08-27T14:00:00Z", 200), pt("2026-08-27T14:15:00Z", 200)]),
+    }),
+    s.put,
+    s.get,
+  );
   const d = day(s.files, "IT", "2026-08-27");
   assert.equal(d.complete[5], true);
   assert.equal(d.points[5], 1);
@@ -189,10 +227,14 @@ test("same snapshot twice is idempotent", async () => {
 
 test("zone history carries direct and lifecycle only", async () => {
   const s = store();
-  await writeHistory({
-    generated_at: "2026-08-27T12:00:00Z",
-    series: { countries: {}, zones: { "IT/SICI": quarterly([pt("2026-08-27T06:00:00Z", 400)]) } },
-  }, s.put, s.get);
+  await writeHistory(
+    {
+      generated_at: "2026-08-27T12:00:00Z",
+      series: { countries: {}, zones: { "IT/SICI": quarterly([pt("2026-08-27T06:00:00Z", 400)]) } },
+    },
+    s.put,
+    s.get,
+  );
   const d = day(s.files, "IT", "2026-08-27", "SICI");
   assert.equal(d.zone, "SICI");
   assert.ok("lifecycle" in d);
@@ -244,8 +286,7 @@ test("without a del the run neither throws nor prunes", async () => {
 
 test("an annual-average country gets /yearly but no hourly routes", async () => {
   const s = store();
-  await writeV2({ generated_at: "2026-08-27T12:00:00Z", series: { countries: {}, zones: {} } },
-    s.put, s.get, s.del);
+  await writeV2({ generated_at: "2026-08-27T12:00:00Z", series: { countries: {}, zones: {} } }, s.put, s.get, s.del);
   assert.ok("v2/AF/yearly" in s.files);
   assert.equal("v2/AF/past-hour" in s.files, false);
   assert.equal("v2/AF/current-hour" in s.files, false);
@@ -260,8 +301,10 @@ test("an annual-average country gets /yearly but no hourly routes", async () => 
 test("a past-hour object is removed once no complete hour remains", async () => {
   const s = store();
   const complete = quarterly([
-    pt("2026-08-27T06:00:00Z", 400), pt("2026-08-27T06:15:00Z", 300),
-    pt("2026-08-27T06:30:00Z", 200), pt("2026-08-27T06:45:00Z", 100),
+    pt("2026-08-27T06:00:00Z", 400),
+    pt("2026-08-27T06:15:00Z", 300),
+    pt("2026-08-27T06:30:00Z", 200),
+    pt("2026-08-27T06:45:00Z", 100),
   ]);
   await writeV2(snapshotOf({ IT: complete }), s.put, s.get, s.del);
   assert.ok("v2/IT/past-hour" in s.files);
@@ -276,8 +319,7 @@ test("a past-hour object is removed once no complete hour remains", async () => 
 
 test("the OpenAPI document covers every route and resolves every $ref", async () => {
   const s = store();
-  await writeV2({ generated_at: "2026-08-27T12:00:00Z", series: { countries: {}, zones: {} } },
-    s.put, s.get, s.del);
+  await writeV2({ generated_at: "2026-08-27T12:00:00Z", series: { countries: {}, zones: {} } }, s.put, s.get, s.del);
   const spec = JSON.parse(s.files["v2/openapi.json"]);
 
   // Every published route is documented. This is the assertion that fails when
@@ -309,14 +351,16 @@ test("the OpenAPI document covers every route and resolves every $ref", async ()
 
   // No timestamp: the spec describes the API's shape, so it must stay
   // byte-identical between runs and out of the commit log.
-  assert.equal(JSON.stringify(spec).includes("generated_at\":\"2026"), false);
+  assert.equal(JSON.stringify(spec).includes('generated_at":"2026'), false);
 });
 
 test("v1 still reads the newest point when a provider returns a whole window", () => {
   // The premise the v2 split rests on: widening the parsers must not move v1.
   const series = quarterly([
-    pt("2026-08-27T06:00:00Z", 400), pt("2026-08-27T06:15:00Z", 300),
-    pt("2026-08-27T06:30:00Z", 200), pt("2026-08-27T06:45:00Z", 117),
+    pt("2026-08-27T06:00:00Z", 400),
+    pt("2026-08-27T06:15:00Z", 300),
+    pt("2026-08-27T06:30:00Z", 200),
+    pt("2026-08-27T06:45:00Z", 117),
   ]);
   const doc = lastHour("IT", { measured: newestReading({ ...series, source: "ENTSO-E" }) });
   assert.equal(doc.hour_start, "2026-08-27T06:45:00Z");

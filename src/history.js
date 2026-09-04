@@ -12,7 +12,7 @@
 // return a long history costs a comparison rather than a churned object.
 
 import { COUNTRIES, hourlyMeans } from "./data.js";
-import { providerFor, zonesFor, ZONES } from "./live.js";
+import { providerFor, ZONES, zonesFor } from "./live.js";
 import { sameExceptTimestamp } from "./pipeline.js";
 
 // A year, so seasonal and year-over-year comparison work. The oldest candidate
@@ -139,7 +139,10 @@ export async function writeHistory(snapshot, put, get, del = null) {
       // The immutability guarantee. A closed day whose hours are all already
       // recorded produces an identical document, so it is not rewritten, so the
       // sync leaves it alone and its `immutable` cache header stays honest.
-      if (before && sameExceptTimestamp(JSON.parse(before), doc)) { skipped += 1; continue; }
+      if (before && sameExceptTimestamp(JSON.parse(before), doc)) {
+        skipped += 1;
+        continue;
+      }
       await put(path, pretty(doc));
       written += 1;
     }
