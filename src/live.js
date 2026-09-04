@@ -8,24 +8,44 @@ import {
   ENTSOE_PSR_TO_FUEL,
   ESKOM_INDEX_TO_FUEL,
   IESO_FUEL_TO_FUEL,
+  mixToDirectIntensity,
   ONS_FUEL_TO_FUEL,
   OPENNEM_FUEL_TO_FUEL,
   SG_FUEL_TO_FUEL,
-  mixToDirectIntensity,
 } from "./factors.js";
 
 // --- country -> ENTSO-E domain EIC code ---------------------------------------
 export const ENTSOE_DOMAIN = {
-  AT: "10YAT-APG------L", BE: "10YBE----------2", BG: "10YCA-BULGARIA-R",
-  BY: "10Y1001A1001A51S", CH: "10YCH-SWISSGRIDZ", CZ: "10YCZ-CEPS-----N",
-  DE: "10Y1001A1001A83F", DK: "10Y1001A1001A65H", EE: "10Y1001A1001A39I",
-  ES: "10YES-REE------0", FI: "10YFI-1--------U", FR: "10YFR-RTE------C",
-  GR: "10YGR-HTSO-----Y", HR: "10YHR-HEP------M", HU: "10YHU-MAVIR----U",
-  IE: "10Y1001A1001A59C", IT: "10YIT-GRTN-----B", LT: "10YLT-1001A0008Q",
-  LU: "10YLU-CEGEDEL-NQ", LV: "10YLV-1001A00074", MK: "10YMK-MEPSO----8",
-  NL: "10YNL----------L", NO: "10YNO-0--------C", PL: "10YPL-AREA-----S",
-  PT: "10YPT-REN------W", RO: "10YRO-TEL------P", RS: "10YCS-SERBIATSOV",
-  SE: "10YSE-1--------K", SI: "10YSI-ELES-----O", SK: "10YSK-SEPS-----K",
+  AT: "10YAT-APG------L",
+  BE: "10YBE----------2",
+  BG: "10YCA-BULGARIA-R",
+  BY: "10Y1001A1001A51S",
+  CH: "10YCH-SWISSGRIDZ",
+  CZ: "10YCZ-CEPS-----N",
+  DE: "10Y1001A1001A83F",
+  DK: "10Y1001A1001A65H",
+  EE: "10Y1001A1001A39I",
+  ES: "10YES-REE------0",
+  FI: "10YFI-1--------U",
+  FR: "10YFR-RTE------C",
+  GR: "10YGR-HTSO-----Y",
+  HR: "10YHR-HEP------M",
+  HU: "10YHU-MAVIR----U",
+  IE: "10Y1001A1001A59C",
+  IT: "10YIT-GRTN-----B",
+  LT: "10YLT-1001A0008Q",
+  LU: "10YLU-CEGEDEL-NQ",
+  LV: "10YLV-1001A00074",
+  MK: "10YMK-MEPSO----8",
+  NL: "10YNL----------L",
+  NO: "10YNO-0--------C",
+  PL: "10YPL-AREA-----S",
+  PT: "10YPT-REN------W",
+  RO: "10YRO-TEL------P",
+  RS: "10YCS-SERBIATSOV",
+  SE: "10YSE-1--------K",
+  SI: "10YSI-ELES-----O",
+  SK: "10YSK-SEPS-----K",
 };
 
 // --- country -> sub-country zones --------------------------------------------
@@ -37,17 +57,26 @@ export const ZONES = {
   // 2021 reform — the abolished ones (BRNN/FOGN/PRGP/ROSN), the MACRO_*
   // aggregates and the virtual interconnector zones are deliberately absent.
   IT: {
-    NORD: "10Y1001A1001A73I", CNOR: "10Y1001A1001A70O", CSUD: "10Y1001A1001A71M",
-    SUD: "10Y1001A1001A788", CALA: "10Y1001C--00096J", SICI: "10Y1001A1001A75E",
+    NORD: "10Y1001A1001A73I",
+    CNOR: "10Y1001A1001A70O",
+    CSUD: "10Y1001A1001A71M",
+    SUD: "10Y1001A1001A788",
+    CALA: "10Y1001C--00096J",
+    SICI: "10Y1001A1001A75E",
     SARD: "10Y1001A1001A74G",
   },
   SE: {
-    SE1: "10Y1001A1001A44P", SE2: "10Y1001A1001A45N",
-    SE3: "10Y1001A1001A46L", SE4: "10Y1001A1001A47J",
+    SE1: "10Y1001A1001A44P",
+    SE2: "10Y1001A1001A45N",
+    SE3: "10Y1001A1001A46L",
+    SE4: "10Y1001A1001A47J",
   },
   NO: {
-    NO1: "10YNO-1--------2", NO2: "10YNO-2--------T", NO3: "10YNO-3--------J",
-    NO4: "10YNO-4--------9", NO5: "10Y1001A1001A48H",
+    NO1: "10YNO-1--------2",
+    NO2: "10YNO-2--------T",
+    NO3: "10YNO-3--------J",
+    NO4: "10YNO-4--------9",
+    NO5: "10Y1001A1001A48H",
   },
   DK: { DK1: "10YDK-1--------W", DK2: "10YDK-2--------M" },
   // EIA-930, passed through as the `respondent` facet. Both grains are offered:
@@ -56,23 +85,72 @@ export const ZONES = {
   // tail of very small BAs is omitted; many do not report a fuel-type breakdown,
   // and a respondent that returns nothing just costs a request.
   US: {
-    CAL: "CAL", CAR: "CAR", CENT: "CENT", FLA: "FLA", MIDA: "MIDA", MIDW: "MIDW",
-    NE: "NE", NW: "NW", NY: "NY", SE: "SE", SW: "SW", TEN: "TEN", TEX: "TEX",
-    AECI: "AECI", AVA: "AVA", AZPS: "AZPS", BANC: "BANC", BPAT: "BPAT",
-    CISO: "CISO", CPLE: "CPLE", DUK: "DUK", EPE: "EPE", ERCO: "ERCO",
-    FPC: "FPC", FPL: "FPL", IID: "IID", IPCO: "IPCO", ISNE: "ISNE", JEA: "JEA",
-    LDWP: "LDWP", LGEE: "LGEE", MISO: "MISO", NEVP: "NEVP", NWMT: "NWMT",
-    NYIS: "NYIS", PACE: "PACE", PACW: "PACW", PGE: "PGE", PJM: "PJM",
-    PNM: "PNM", PSCO: "PSCO", PSEI: "PSEI", SC: "SC", SCEG: "SCEG", SCL: "SCL",
-    SOCO: "SOCO", SRP: "SRP", SWPP: "SWPP", TEC: "TEC", TEPC: "TEPC",
-    TIDC: "TIDC", TPWR: "TPWR", TVA: "TVA", WACM: "WACM", WALC: "WALC",
+    CAL: "CAL",
+    CAR: "CAR",
+    CENT: "CENT",
+    FLA: "FLA",
+    MIDA: "MIDA",
+    MIDW: "MIDW",
+    NE: "NE",
+    NW: "NW",
+    NY: "NY",
+    SE: "SE",
+    SW: "SW",
+    TEN: "TEN",
+    TEX: "TEX",
+    AECI: "AECI",
+    AVA: "AVA",
+    AZPS: "AZPS",
+    BANC: "BANC",
+    BPAT: "BPAT",
+    CISO: "CISO",
+    CPLE: "CPLE",
+    DUK: "DUK",
+    EPE: "EPE",
+    ERCO: "ERCO",
+    FPC: "FPC",
+    FPL: "FPL",
+    IID: "IID",
+    IPCO: "IPCO",
+    ISNE: "ISNE",
+    JEA: "JEA",
+    LDWP: "LDWP",
+    LGEE: "LGEE",
+    MISO: "MISO",
+    NEVP: "NEVP",
+    NWMT: "NWMT",
+    NYIS: "NYIS",
+    PACE: "PACE",
+    PACW: "PACW",
+    PGE: "PGE",
+    PJM: "PJM",
+    PNM: "PNM",
+    PSCO: "PSCO",
+    PSEI: "PSEI",
+    SC: "SC",
+    SCEG: "SCEG",
+    SCL: "SCL",
+    SOCO: "SOCO",
+    SRP: "SRP",
+    SWPP: "SWPP",
+    TEC: "TEC",
+    TEPC: "TEPC",
+    TIDC: "TIDC",
+    TPWR: "TPWR",
+    TVA: "TVA",
+    WACM: "WACM",
+    WALC: "WALC",
   },
   // OpenNEM. The five NEM regions plus WEM, which is a physically separate
   // network (the South West Interconnected System around Perth) and so has its
   // own path rather than sitting under NEM.
   AU: {
-    NSW1: "NEM/NSW1", QLD1: "NEM/QLD1", SA1: "NEM/SA1",
-    TAS1: "NEM/TAS1", VIC1: "NEM/VIC1", WEM: "WEM",
+    NSW1: "NEM/NSW1",
+    QLD1: "NEM/QLD1",
+    SA1: "NEM/SA1",
+    TAS1: "NEM/TAS1",
+    VIC1: "NEM/VIC1",
+    WEM: "WEM",
   },
   // IESO. Canada's grid is provincial and only Ontario publishes a keyless
   // hourly fuel mix, so the country as a whole stays on the annual snapshot —
@@ -105,9 +183,9 @@ function parseDt(text) {
 }
 
 function hourWindow(instant) {
-  const start = new Date(Date.UTC(
-    instant.getUTCFullYear(), instant.getUTCMonth(), instant.getUTCDate(), instant.getUTCHours(),
-  ));
+  const start = new Date(
+    Date.UTC(instant.getUTCFullYear(), instant.getUTCMonth(), instant.getUTCDate(), instant.getUTCHours()),
+  );
   return [iso(start), iso(new Date(start.getTime() + 3600 * 1000))];
 }
 
@@ -118,7 +196,9 @@ function num(text) {
 }
 
 function intervalMinutes(text) {
-  const t = String(text || "").trim().toLowerCase();
+  const t = String(text || "")
+    .trim()
+    .toLowerCase();
   if (t.endsWith("m")) return parseInt(t.slice(0, -1), 10);
   if (t.endsWith("h")) return parseInt(t.slice(0, -1), 10) * 60;
   return 5;
@@ -183,9 +263,7 @@ export function parseEntsoe(xml) {
       const resM = period.match(/<resolution>([^<]+)</);
       const points = period.match(/<Point>[\s\S]*?<\/Point>/g) || [];
       if (!startM || points.length === 0) continue;
-      const step = intervalMinutes(
-        resM ? resM[1].trim().replace(/^PT/i, "") : "60m",
-      );
+      const step = intervalMinutes(resM ? resM[1].trim().replace(/^PT/i, "") : "60m");
       const start = parseDt(startM[1]);
       for (const p of points) {
         const pos = parseInt((p.match(/<position>(\d+)/) || [])[1], 10);
@@ -332,11 +410,13 @@ export function parseOpennem(payload) {
   }));
   // Latest instant every track has a value for. Taking the newest instant of
   // any single track instead would land on one a slower feed has not reached.
-  const ends = tracks.map((t) => {
-    let i = t.data.length - 1;
-    while (i >= 0 && t.data[i] == null) i -= 1;
-    return i >= 0 ? t.start + i * t.step : null;
-  }).filter((t) => t != null);
+  const ends = tracks
+    .map((t) => {
+      let i = t.data.length - 1;
+      while (i >= 0 && t.data[i] == null) i -= 1;
+      return i >= 0 ? t.start + i * t.step : null;
+    })
+    .filter((t) => t != null);
   if (ends.length === 0) throw new Error("OpenNEM series contained no values");
   const instant = Math.min(...ends);
   const mix = {};
@@ -396,7 +476,10 @@ export function parseEskomCsv(text) {
     if (cols.every((v) => v.trim() === "")) continue;
     const d = new Date(`${head.replace(" ", "T")}+02:00`); // SAST, no DST
     if (Number.isNaN(d.getTime())) continue;
-    if (latestMs == null || d.getTime() > latestMs) { latestMs = d.getTime(); latestCols = cols; }
+    if (latestMs == null || d.getTime() > latestMs) {
+      latestMs = d.getTime();
+      latestCols = cols;
+    }
   }
   if (latestMs == null) throw new Error("Eskom CSV had no usable rows");
   const mix = {};
@@ -424,10 +507,17 @@ export function parseEskomCsv(text) {
 function zoneOffsetMs(tz, at) {
   const p = Object.fromEntries(
     new Intl.DateTimeFormat("en-US", {
-      timeZone: tz, hour12: false,
-      year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", second: "2-digit",
-    }).formatToParts(at).map((x) => [x.type, x.value]),
+      timeZone: tz,
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
+      .formatToParts(at)
+      .map((x) => [x.type, x.value]),
   );
   const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second);
   return asUtc - at.getTime();
@@ -494,7 +584,9 @@ async function get(url, kind = "json") {
   return kind === "text" ? resp.text() : resp.json();
 }
 
-function pad(n) { return String(n).padStart(2, "0"); }
+function pad(n) {
+  return String(n).padStart(2, "0");
+}
 
 export async function fetchEntsoe(code, token, zone = null) {
   const domain = zone ? ZONES[code]?.[zone] : ENTSOE_DOMAIN[code];
@@ -504,8 +596,12 @@ export async function fetchEntsoe(code, token, zone = null) {
   const fmt = (d) => `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}${pad(d.getUTCHours())}00`;
   const url = new URL("https://web-api.tp.entsoe.eu/api");
   url.search = new URLSearchParams({
-    documentType: "A75", processType: "A16", in_Domain: domain,
-    periodStart: fmt(start), periodEnd: fmt(end), securityToken: token,
+    documentType: "A75",
+    processType: "A16",
+    in_Domain: domain,
+    periodStart: fmt(start),
+    periodEnd: fmt(end),
+    securityToken: token,
   }).toString();
   return parseEntsoe(await get(url, "text"));
 }
@@ -513,9 +609,13 @@ export async function fetchEntsoe(code, token, zone = null) {
 export async function fetchEia(token, respondent = "US48") {
   const url = new URL("https://api.eia.gov/v2/electricity/rto/fuel-type-data/data/");
   url.search = new URLSearchParams({
-    api_key: token, frequency: "hourly", "data[0]": "value",
-    "facets[respondent][]": respondent, "sort[0][column]": "period",
-    "sort[0][direction]": "desc", length: "200",
+    api_key: token,
+    frequency: "hourly",
+    "data[0]": "value",
+    "facets[respondent][]": respondent,
+    "sort[0][column]": "period",
+    "sort[0][direction]": "desc",
+    length: "200",
   }).toString();
   return parseEia(await get(url));
 }
@@ -550,16 +650,16 @@ export async function fetchIeso() {
   // GenOutputCapability, not GenOutputbyFuelHourly: the latter is the tidier
   // shape but is republished once a day and a day behind, which is no use to an
   // hourly pipeline. This one is 70 KB, current-day, and updated every hour.
-  return parseIeso(await get(
-    "https://reports-public.ieso.ca/public/GenOutputCapability/PUB_GenOutputCapability.xml",
-    "text",
-  ));
+  return parseIeso(
+    await get("https://reports-public.ieso.ca/public/GenOutputCapability/PUB_GenOutputCapability.xml", "text"),
+  );
 }
 
 export async function fetchEskom() {
   const now = new Date();
-  const url = "https://www.eskom.co.za/dataportal/wp-content/uploads/"
-    + `${now.getUTCFullYear()}/${pad(now.getUTCMonth() + 1)}/Station_Build_Up.csv`;
+  const url =
+    "https://www.eskom.co.za/dataportal/wp-content/uploads/" +
+    `${now.getUTCFullYear()}/${pad(now.getUTCMonth() + 1)}/Station_Build_Up.csv`;
   return parseEskomCsv(await get(url, "text"));
 }
 

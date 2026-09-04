@@ -1,9 +1,6 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  COUNTRIES, UnknownCountry, lastHour, listCountries,
-  resolveCode, sourceFor,
-} from "../src/data.js";
+import { test } from "node:test";
+import { COUNTRIES, lastHour, listCountries, resolveCode, sourceFor, UnknownCountry } from "../src/data.js";
 
 test("covers all countries", () => {
   assert.ok(Object.keys(COUNTRIES).length >= 200);
@@ -46,7 +43,12 @@ test("annual reading shape", () => {
 });
 
 test("estimated tracks basis; zone is always present", () => {
-  const measured = { direct: 90, hour_start: "2026-08-08T13:00:00Z", hour_end: "2026-08-08T14:00:00Z", source: "ENTSO-E" };
+  const measured = {
+    direct: 90,
+    hour_start: "2026-08-08T13:00:00Z",
+    hour_end: "2026-08-08T14:00:00Z",
+    source: "ENTSO-E",
+  };
   // `estimated` is derived from `basis`, so the two cannot disagree — which is
   // the only reason it is safe to publish both.
   const annual = lastHour("DE");
@@ -112,7 +114,7 @@ test("listCountries exposes realtime_available", () => {
 test("the four figures are the corners of the two axes", () => {
   const rec = COUNTRIES.CH; // a heavy importer, where the corners differ most
   const r = lastHour("CH");
-  assert.equal(r.lifecycle, r.direct + rec.lifecycleDelta);           // scope
+  assert.equal(r.lifecycle, r.direct + rec.lifecycleDelta); // scope
   assert.equal(r.consumption_direct, r.direct + rec.consumptionDelta); // boundary
   assert.equal(r.consumption_lifecycle, r.direct + rec.lifecycleDelta + rec.consumptionDelta);
   // Not a ladder: for an importer the trade-adjusted operational figure exceeds
@@ -122,7 +124,12 @@ test("the four figures are the corners of the two axes", () => {
 });
 
 test("zone readings carry neither consumption figure", () => {
-  const measured = { direct: 100, hour_start: "2026-08-08T13:00:00Z", hour_end: "2026-08-08T14:00:00Z", source: "ENTSO-E" };
+  const measured = {
+    direct: 100,
+    hour_start: "2026-08-08T13:00:00Z",
+    hour_end: "2026-08-08T14:00:00Z",
+    source: "ENTSO-E",
+  };
   const r = lastHour("IT", { zone: "SICI", measured });
   assert.equal(r.consumption_direct, undefined);
   assert.equal(r.consumption_lifecycle, undefined);

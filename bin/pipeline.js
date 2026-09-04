@@ -1,11 +1,12 @@
 #!/usr/bin/env node
+
 // Pipeline runner: build the snapshot and write v1/latest.json plus per-country
 // files (v1/last-hour/<CODE>, no extension) under a directory.
 //
 //   node bin/pipeline.js [--out data] [--no-live]
 
-import { buildSnapshot, writeAll, writeV2 } from "../src/pipeline.js";
 import { writeHistory } from "../src/history.js";
+import { buildSnapshot, writeAll, writeV2 } from "../src/pipeline.js";
 import { fsStore } from "../src/storage.js";
 
 function arg(name, fallback) {
@@ -25,11 +26,11 @@ const { written, skipped } = await writeAll(snapshot, out.put, out.get);
 const v2 = await writeV2(snapshot, out.put, out.get, out.del);
 const hist = await writeHistory(snapshot, out.put, out.get, out.del);
 console.error(
-  `wrote ${outDir}/latest.json + ${written} files (${skipped} annual unchanged) — `
-  + `${snapshot.count} countries, ${snapshot.measured_count} measured, `
-  + `generated_at=${snapshot.generated_at}`,
+  `wrote ${outDir}/latest.json + ${written} files (${skipped} annual unchanged) — ` +
+    `${snapshot.count} countries, ${snapshot.measured_count} measured, ` +
+    `generated_at=${snapshot.generated_at}`,
 );
 console.error(
-  `v2: ${v2.written} files (${v2.skipped} annual unchanged); `
-  + `history: ${hist.written} days written, ${hist.skipped} unchanged, ${hist.pruned} pruned`,
+  `v2: ${v2.written} files (${v2.skipped} annual unchanged); ` +
+    `history: ${hist.written} days written, ${hist.skipped} unchanged, ${hist.pruned} pruned`,
 );

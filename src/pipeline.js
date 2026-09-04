@@ -7,16 +7,16 @@
 import {
   ATTRIBUTION,
   COUNTRIES,
-  ProviderlessZone,
-  METHODOLOGY,
   currentHour,
   hourDocument,
   lastHour,
   listCountries,
+  METHODOLOGY,
+  ProviderlessZone,
   pastHour,
   yearlyDocument,
 } from "./data.js";
-import { ZONES, measuredLastHour, newestReading, zonesFor } from "./live.js";
+import { measuredLastHour, newestReading, ZONES, zonesFor } from "./live.js";
 import { buildSpec } from "./openapi.js";
 
 function nowIso() {
@@ -36,11 +36,13 @@ export async function buildSnapshot({ useLive = true, env = {}, generatedAt = nu
   // v1 wants one point (`newestReading`), v2's hourly routes and history want
   // every point in the window. One fetch feeds both.
   const countrySeries = {};
-  const readings = await Promise.all(codes.map(async (code) => {
-    const s = useLive ? await measuredLastHour(code, { env }) : null;
-    if (s) countrySeries[code] = s;
-    return lastHour(code, { measured: newestReading(s) });
-  }));
+  const readings = await Promise.all(
+    codes.map(async (code) => {
+      const s = useLive ? await measuredLastHour(code, { env }) : null;
+      if (s) countrySeries[code] = s;
+      return lastHour(code, { measured: newestReading(s) });
+    }),
+  );
   const countries = {};
   let measuredCount = 0;
   codes.forEach((code, i) => {
@@ -53,18 +55,20 @@ export async function buildSnapshot({ useLive = true, env = {}, generatedAt = nu
   // varies hour to hour.
   const pairs = useLive ? knownZones() : [];
   const zoneSeries = {};
-  const zoneReadings = await Promise.all(pairs.map(async ([code, zone]) => {
-    const key = `${code}/${zone}`;
-    const s = await measuredLastHour(code, { env, zone });
-    try {
-      const reading = lastHour(code, { measured: newestReading(s), zone });
-      if (s) zoneSeries[key] = s;
-      return [key, reading];
-    } catch (e) {
-      if (e instanceof ProviderlessZone) return null;
-      throw e;
-    }
-  }));
+  const zoneReadings = await Promise.all(
+    pairs.map(async ([code, zone]) => {
+      const key = `${code}/${zone}`;
+      const s = await measuredLastHour(code, { env, zone });
+      try {
+        const reading = lastHour(code, { measured: newestReading(s), zone });
+        if (s) zoneSeries[key] = s;
+        return [key, reading];
+      } catch (e) {
+        if (e instanceof ProviderlessZone) return null;
+        throw e;
+      }
+    }),
+  );
   const zones = Object.fromEntries(zoneReadings.filter(Boolean));
 
   return {
@@ -144,7 +148,10 @@ export async function writeAll(snapshot, put, get = null) {
   for (const code of codes) {
     const doc = docs[code];
     const path = `v1/last-hour/${code}`;
-    if (!await writeCountry(path, doc)) { skipped += 1; continue; }
+    if (!(await writeCountry(path, doc))) {
+      skipped += 1;
+      continue;
+    }
     // ISO-3 alias. resolveCode() maps DEU -> DE in application code; a bucket
     // cannot, so the alias has to exist as its own object for the documented
     // alpha-3 lookups to keep working.
@@ -154,16 +161,32 @@ export async function writeAll(snapshot, put, get = null) {
 
   const zoneKeys = Object.keys(snapshot.zones || {}).sort();
   for (const key of zoneKeys) {
-    await put(`v1/zones/${key}`, pretty({
-      generated_at: snapshot.generated_at, ...snapshot.zones[key], attribution: ATTRIBUTION,
-    }));
+    await put(
+      `v1/zones/${key}`,
+      pretty({
+        generated_at: snapshot.generated_at,
+        ...snapshot.zones[key],
+        attribution: ATTRIBUTION,
+      }),
+    );
   }
-  await put("v1/countries", pretty({
-    count: listCountries().length, attribution: ATTRIBUTION, countries: listCountries(),
-  }));
-  await put("v1/last-hour/index.json", pretty({
-    generated_at: snapshot.generated_at, count: codes.length, countries: codes, zones: zoneKeys,
-  }));
+  await put(
+    "v1/countries",
+    pretty({
+      count: listCountries().length,
+      attribution: ATTRIBUTION,
+      countries: listCountries(),
+    }),
+  );
+  await put(
+    "v1/last-hour/index.json",
+    pretty({
+      generated_at: snapshot.generated_at,
+      count: codes.length,
+      countries: codes,
+      zones: zoneKeys,
+    }),
+  );
   return { written: codes.length - skipped + zoneKeys.length, skipped };
 }
 
@@ -212,7 +235,10 @@ export async function writeV2(snapshot, put, get = null, del = null) {
   ];
   for (const [code, zone, s] of targets) {
     const prefix = zone ? `v2/${code}/${zone}` : `v2/${code}`;
-    for (const [route, mean] of [["past-hour", pastHour(s)], ["current-hour", currentHour(s)]]) {
+    for (const [route, mean] of [
+      ["past-hour", pastHour(s)],
+      ["current-hour", currentHour(s)],
+    ]) {
       const path = `${prefix}/${route}`;
       if (!mean) {
         if (del) await del(path);
@@ -262,25 +288,31 @@ export async function writeV2(snapshot, put, get = null, del = null) {
   // only shows up in the commit log when the API actually changes.
   await put("v2/openapi.json", pretty(buildSpec()));
 
-  await put("v2/countries.json", pretty({
-    count: catalogue.length,
-    generated_at: snapshot.generated_at,
-    attribution: ATTRIBUTION,
-    countries: catalogue,
-  }));
+  await put(
+    "v2/countries.json",
+    pretty({
+      count: catalogue.length,
+      generated_at: snapshot.generated_at,
+      attribution: ATTRIBUTION,
+      countries: catalogue,
+    }),
+  );
 
   // Bulk past-hour, but deliberately no bulk current-hour: completeness varies
   // by provider, so a cross-country table of hours-in-progress would compare a
   // finished EIA hour against a quarter of an ENTSO-E one.
   bulk.sort((a, b) => a.country_code.localeCompare(b.country_code));
-  await put("v2/past-hour.json", pretty({
-    count: bulk.length,
-    generated_at: snapshot.generated_at,
-    unit: "gCO2eq/kWh",
-    methodology: METHODOLOGY,
-    attribution: ATTRIBUTION,
-    countries: bulk,
-  }));
+  await put(
+    "v2/past-hour.json",
+    pretty({
+      count: bulk.length,
+      generated_at: snapshot.generated_at,
+      unit: "gCO2eq/kWh",
+      methodology: METHODOLOGY,
+      attribution: ATTRIBUTION,
+      countries: bulk,
+    }),
+  );
 
   return { written, skipped };
 }
