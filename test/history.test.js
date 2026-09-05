@@ -15,7 +15,11 @@ function store() {
       files[p] = b;
     },
     get: async (p) => files[p] ?? null,
-    del: async (p) => (p in files ? (delete files[p], true) : false),
+    del: async (p) => {
+      if (!(p in files)) return false;
+      delete files[p];
+      return true;
+    },
   };
 }
 

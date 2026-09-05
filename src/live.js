@@ -239,7 +239,7 @@ export function pointsPerHour(resolutionSec) {
 // returned before they were widened to a series. v1 objects are frozen, so this
 // is the adapter that keeps them byte-identical.
 export function newestReading(s) {
-  if (!s || !s.points || s.points.length === 0) return null;
+  if (!s?.points?.length) return null;
   const p = s.points[s.points.length - 1];
   return { direct: p.direct, hour_start: p.start, hour_end: p.end, source: s.source };
 }
@@ -335,12 +335,12 @@ export function parseUk(payload, dayPayload = null) {
   const obj = typeof payload === "string" ? JSON.parse(payload) : payload;
   const rows = obj?.data || [];
   if (rows.length === 0) throw new Error("NESO response contained no data");
-  const valueOf = (row) => row?.intensity?.actual ?? row?.intensity?.forecast;
+  const intensityOf = (row) => row?.intensity?.actual ?? row?.intensity?.forecast;
   // Checked against the newest row specifically, not "any row has a value":
   // v1 fell back to the annual figure when the current period had no intensity,
   // and widening to a series must not quietly start answering with an older one.
   const newest = rows[rows.length - 1];
-  if (valueOf(newest) == null) throw new Error("NESO period had no intensity");
+  if (intensityOf(newest) == null) throw new Error("NESO period had no intensity");
 
   const byStart = new Map();
   let stepSec = 1800; // half-hourly settlement periods
@@ -361,7 +361,7 @@ export function parseUk(payload, dayPayload = null) {
   // Then the current period, last and authoritative — keyed by start, so it
   // replaces the day feed's copy rather than duplicating it.
   for (const row of rows) {
-    const value = valueOf(row);
+    const value = intensityOf(row);
     if (value != null) add(row, value);
   }
 
@@ -713,7 +713,7 @@ export async function measuredLastHour(
   for (let i = 0; i < attempts; i += 1) {
     try {
       const s = await fetch_();
-      if (!s || !s.points || s.points.length === 0) throw new Error("empty series");
+      if (!s?.points?.length) throw new Error("empty series");
       return { ...s, source: provider };
     } catch {
       // Exponential (1s, 2s), jittered: the pipeline fires every US balancing

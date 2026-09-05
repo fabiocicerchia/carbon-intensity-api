@@ -6,13 +6,7 @@
   "license": "AGPL-3.0-or-later",
   "author": "Fabio Cicerchia",
   "exports": "./src/handler.js",
-  "files": [
-    "src",
-    "bin",
-    "server.js",
-    "sync.sh",
-    "!src/datasets/*.csv"
-  ],
+  "files": ["src", "bin", "server.js", "sync.sh", "!src/datasets/*.csv"],
   "bin": {
     "carbon-intensity-pipeline": "bin/pipeline.js"
   },
