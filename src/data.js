@@ -227,7 +227,7 @@ export function lastHour(country, { measured = null, zone = null } = {}) {
 
 // -> [{ hour, direct, points, complete }], oldest first.
 export function hourlyMeans(series) {
-  if (!series || !series.points || series.points.length === 0) return [];
+  if (!series?.points?.length) return [];
   const expected = pointsPerHour(series.resolution_sec);
   const byHour = new Map();
   for (const p of series.points) {

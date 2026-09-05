@@ -24,7 +24,6 @@
 import { ATTRIBUTION, lastHour, listCountries, ProviderlessZone, resolveCode, UnknownCountry } from "./data.js";
 import { measuredLastHour, zonesFor } from "./live.js";
 
-const SOURCE_URL = "https://github.com/fabiocicerchia/carbon-intensity-api";
 const STALE_AFTER_SECONDS = 3900; // a fresh snapshot is expected hourly
 
 function json(body, status = 200) {
