@@ -15,6 +15,10 @@ import { COUNTRIES, hourlyMeans } from "./data.js";
 import { providerFor, ZONES, zonesFor } from "./live.js";
 import { sameExceptTimestamp } from "./pipeline.js";
 
+// Field offsets in "YYYY-MM-DDTHH:MM:SSZ": the two hour digits sit at 11..13.
+const ISO_HOUR_FIELD_START = 11;
+const ISO_HOUR_FIELD_END = 13;
+
 // A year, so seasonal and year-over-year comparison work. The oldest candidate
 // for deletion is RETENTION_DAYS back; today and yesterday are never candidates
 // whatever else happens.
@@ -83,7 +87,7 @@ export function upsertDay(existingRaw, means, { code, zone = null, date, generat
   const doc = existingRaw ? JSON.parse(existingRaw) : freshDay(code, zone, date);
   for (const m of means) {
     if (dayOf(m.hour) !== date) continue;
-    const hour = Number(m.hour.slice(11, 13));
+    const hour = Number(m.hour.slice(ISO_HOUR_FIELD_START, ISO_HOUR_FIELD_END));
     grow(doc, hour, zone);
     // Overwrite rather than merge. A later fetch has seen more of the hour, so
     // its mean is strictly better than the one computed from fewer points.

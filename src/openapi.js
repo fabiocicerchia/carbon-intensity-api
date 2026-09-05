@@ -14,6 +14,7 @@ import { COUNTRIES } from "./data.js";
 import { ZONES, zonesFor } from "./live.js";
 
 const SERVER = "https://ci-api.fabiocicerchia.it";
+const SECONDS_PER_HOUR = 3600;
 
 const ATTRIBUTION_SCHEMA = {
   type: "object",
@@ -107,7 +108,7 @@ const HISTORY_DAY = {
     basis: { type: "string", enum: ["measured"] },
     date: { type: "string", format: "date" },
     start: { type: "string", format: "date-time", description: "Always midnight UTC." },
-    step_sec: { type: "integer", enum: [3600] },
+    step_sec: { type: "integer", enum: [SECONDS_PER_HOUR] },
     direct: { type: "array", items: { type: "integer", nullable: true } },
     lifecycle: { type: "array", items: { type: "integer", nullable: true } },
     consumption_direct: {

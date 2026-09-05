@@ -102,7 +102,11 @@ export function countryDocs(snapshot) {
 // Left alone unless the values actually differ or the stored copy has gone a
 // week stale, so the timestamp still moves often enough to show the pipeline is
 // alive. A changed value republishes immediately, whatever the age.
-const ANNUAL_REFRESH_SECONDS = 7 * 24 * 3600;
+const MS_PER_SECOND = 1000;
+const SECONDS_PER_HOUR = 3600;
+const HOURS_PER_DAY = 24;
+const DAYS_PER_WEEK = 7;
+const ANNUAL_REFRESH_SECONDS = DAYS_PER_WEEK * HOURS_PER_DAY * SECONDS_PER_HOUR;
 
 // Everything but the timestamp. Comparing a named list of figures would have
 // let a change of shape — a renamed or added field — sit unpublished behind the
@@ -137,7 +141,7 @@ export async function writeAll(snapshot, put, get = null) {
       const raw = await get(path);
       if (raw) {
         const prev = JSON.parse(raw);
-        const age = (now - Date.parse(prev.generated_at)) / 1000;
+        const age = (now - Date.parse(prev.generated_at)) / MS_PER_SECOND;
         if (sameExceptTimestamp(prev, doc) && Number.isFinite(age) && age < ANNUAL_REFRESH_SECONDS) return false;
       }
     }
@@ -212,7 +216,7 @@ export async function writeV2(snapshot, put, get = null, del = null) {
     const raw = get ? await get(path) : null;
     if (raw) {
       const prev = JSON.parse(raw);
-      const age = (now - Date.parse(prev.generated_at)) / 1000;
+      const age = (now - Date.parse(prev.generated_at)) / MS_PER_SECOND;
       if (sameExceptTimestamp(prev, doc) && Number.isFinite(age) && age < ANNUAL_REFRESH_SECONDS) {
         skipped += 1;
         continue;
