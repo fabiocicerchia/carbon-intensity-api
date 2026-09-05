@@ -1,0 +1,82 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.6/schema.json",
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        "noDefaultExport": "error",
+        "noEnum": "error",
+        "noNonNullAssertion": "error",
+        "useConst": "error",
+        "useImportType": "error",
+        "noMagicNumbers": "error"
+      },
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noDoubleEquals": "error",
+        "noVar": "error",
+        "useAwait": "error",
+        "noShadowRestrictedNames": "error"
+      },
+      "correctness": {
+        "noInnerDeclarations": "error",
+        "noUnusedVariables": "error"
+      },
+      "nursery": {
+        "noFloatingPromises": "error"
+      },
+      "complexity": {
+        "noCommaOperator": "error",
+        "useOptionalChain": "error"
+      }
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "files": {
+    "includes": ["**", "!**/dist", "!**/node_modules"]
+  },
+  "overrides": [
+    {
+      // Two rules whose premise does not hold for a test.
+      //
+      // noMagicNumbers: an expected value IS the literal. `assert.equal(x, 300)`
+      // says what it means, and hoisting 300 to EXPECTED_INTENSITY moves the
+      // assertion one indirection away from the thing being asserted.
+      //
+      // useAwait: the fakes here stand in for an async interface -- a store's
+      // put/get, a provider's fetch -- so they are declared async to match the
+      // contract they replace, not because they do async work.
+      //
+      // Everything else stays on: these files are held to the same rules as the
+      // rest of the tree.
+      "includes": ["test/**"],
+      "linter": {
+        "rules": {
+          "style": { "noMagicNumbers": "off" },
+          "suspicious": { "useAwait": "off" }
+        }
+      }
+    }
+  ]
+}

@@ -1,7 +1,5 @@
 {
-  "Exclude": [
-    "^LICENSE$"
-  ],
+  "Exclude": ["^LICENSE$"],
   "Disable": {
     "IndentSize": true
   }
