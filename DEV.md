@@ -124,6 +124,9 @@ services carry prices, not the generation mix.
 - **Refreshing bundled annual data:** re-run the extraction from the OWID energy
   dataset into `src/datasets/countries.csv`, regenerate `countries.json`, and
   commit. Sources live in `src/datasets/sources.csv`.
+- **Curated lifecycle/consumption deltas:** `src/datasets/curated-deltas.json` is
+  hand-maintained, unlike the `.csv`/`.json` pairs beside it. A country absent
+  from it falls back to the modelled uplift in `src/data.js`.
 - **Attribution URL:** the `attribution` block in responses is defined in
   [`src/data.js`](./src/data.js) (`ATTRIBUTION`). Update it if the site URL or
   repository location changes.
