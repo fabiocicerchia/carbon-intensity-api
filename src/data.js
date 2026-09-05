@@ -33,8 +33,16 @@ export const ATTRIBUTION = {
 
 // Modelled lifecycle uplift over operational intensity (~5% fuel-supply +
 // ~25 gCO2/kWh embodied floor) for countries without a curated figure.
+const FUEL_SUPPLY_UPLIFT = 0.05;
+const EMBODIED_FLOOR_G = 25;
+// "YYYY-MM-DDTHH" -- an ISO timestamp truncated to its hour.
+const ISO_HOUR_PREFIX_LENGTH = 13;
+const SECONDS_PER_HOUR = 3600;
+const MS_PER_SECOND = 1000;
+const MS_PER_HOUR = SECONDS_PER_HOUR * MS_PER_SECOND;
+
 function modelledLifecycleDelta(direct) {
-  return Math.round(direct * 0.05 + 25);
+  return Math.round(direct * FUEL_SUPPLY_UPLIFT + EMBODIED_FLOOR_G);
 }
 
 // Curated [lifecycle_delta, consumption_delta] over the operational `direct`
@@ -186,7 +194,7 @@ export function hourlyMeans(series) {
   for (const p of series.points) {
     // A point is assigned by where it STARTS: one starting 06:45 covers
     // 06:45-07:00 and belongs to hour 06, not 07.
-    const hour = `${p.start.slice(0, 13)}:00:00Z`;
+    const hour = `${p.start.slice(0, ISO_HOUR_PREFIX_LENGTH)}:00:00Z`;
     if (!byHour.has(hour)) byHour.set(hour, []);
     byHour.get(hour).push(p.direct);
   }
@@ -234,7 +242,7 @@ export function hourDocument(country, mean, { series, zone = null } = {}) {
     // Always a true clock hour, unlike v1's hour_start/hour_end which were one
     // provider data point wide — 15 minutes for ENTSO-E — under hour-shaped names.
     period_start: mean.hour,
-    period_end: new Date(startMs + 3600 * 1000).toISOString().replace(/\.\d{3}Z$/, "Z"),
+    period_end: new Date(startMs + MS_PER_HOUR).toISOString().replace(/\.\d{3}Z$/, "Z"),
     resolution_sec: series.resolution_sec,
     points: mean.points,
     points_expected: pointsPerHour(series.resolution_sec),
