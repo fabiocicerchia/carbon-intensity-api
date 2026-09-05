@@ -1,5 +1,5 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import { handleRequest } from "../src/handler.js";
 
 const req = (path) => new Request(`https://x.local${path}`);
@@ -45,7 +45,9 @@ test("/v1/last-hour serves the precomputed snapshot verbatim", async () => {
 });
 
 test("/v1/latest.json from store; 503 without", async () => {
-  const store = { get: async (k) => (k === "v1/latest.json" ? '{"count":213,"generated_at":"2026-08-08T13:00:00Z"}' : null) };
+  const store = {
+    get: async (k) => (k === "v1/latest.json" ? '{"count":213,"generated_at":"2026-08-08T13:00:00Z"}' : null),
+  };
   const b = await body(await handleRequest(req("/v1/latest.json"), {}, store, Date.parse("2026-08-08T13:10:00Z")));
   assert.equal(b.count, 213);
   assert.equal(b.stale, undefined);
@@ -60,7 +62,8 @@ test("landing page served from store", async () => {
 });
 
 test("/v1/last-hour/<CODE>/<ZONE> served from store, no consumption_direct", async () => {
-  const doc = '{"country_code":"IT","zone":"SICI","basis":"measured","direct":300,"generated_at":"2026-08-08T13:00:00Z"}';
+  const doc =
+    '{"country_code":"IT","zone":"SICI","basis":"measured","direct":300,"generated_at":"2026-08-08T13:00:00Z"}';
   const store = { get: async (k) => (k === "v1/zones/IT/SICI" ? doc : null) };
   const res = await handleRequest(req("/v1/zones/IT/SICI"), {}, store, Date.parse("2026-08-08T13:10:00Z"));
   const b = await body(res);
@@ -85,7 +88,8 @@ test("/v1/countries advertises zones", async () => {
 });
 
 test("zone blip: stale snapshot served rather than 404", async () => {
-  const doc = '{"country_code":"IT","zone":"SICI","basis":"measured","direct":300,"generated_at":"2026-08-09T10:00:00Z"}';
+  const doc =
+    '{"country_code":"IT","zone":"SICI","basis":"measured","direct":300,"generated_at":"2026-08-09T10:00:00Z"}';
   const store = { get: async (k) => (k === "v1/zones/IT/SICI" ? doc : null) };
   // Two hours on, the hourly run has missed this zone and no token is bound,
   // so the live retry fails too. The old reading is still the best answer.
@@ -102,8 +106,14 @@ test("zone blip: a fresh snapshot is served without touching the provider", asyn
   // window the provider is never consulted, so only a stale one can trigger
   // the live retry that would otherwise run on every zone request.
   let reads = 0;
-  const doc = '{"country_code":"AU","zone":"SA1","basis":"measured","direct":300,"generated_at":"2026-08-09T11:50:00Z"}';
-  const store = { get: async (k) => { reads += 1; return k === "v1/zones/AU/SA1" ? doc : null; } };
+  const doc =
+    '{"country_code":"AU","zone":"SA1","basis":"measured","direct":300,"generated_at":"2026-08-09T11:50:00Z"}';
+  const store = {
+    get: async (k) => {
+      reads += 1;
+      return k === "v1/zones/AU/SA1" ? doc : null;
+    },
+  };
   const b = await body(await handleRequest(req("/v1/zones/AU/SA1"), {}, store, Date.parse("2026-08-09T12:00:00Z")));
   assert.equal(b.direct, 300);
   assert.equal(reads, 1);

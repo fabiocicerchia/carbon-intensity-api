@@ -8,24 +8,44 @@ import {
   ENTSOE_PSR_TO_FUEL,
   ESKOM_INDEX_TO_FUEL,
   IESO_FUEL_TO_FUEL,
+  mixToDirectIntensity,
   ONS_FUEL_TO_FUEL,
   OPENNEM_FUEL_TO_FUEL,
   SG_FUEL_TO_FUEL,
-  mixToDirectIntensity,
 } from "./factors.js";
 
 // --- country -> ENTSO-E domain EIC code ---------------------------------------
 export const ENTSOE_DOMAIN = {
-  AT: "10YAT-APG------L", BE: "10YBE----------2", BG: "10YCA-BULGARIA-R",
-  BY: "10Y1001A1001A51S", CH: "10YCH-SWISSGRIDZ", CZ: "10YCZ-CEPS-----N",
-  DE: "10Y1001A1001A83F", DK: "10Y1001A1001A65H", EE: "10Y1001A1001A39I",
-  ES: "10YES-REE------0", FI: "10YFI-1--------U", FR: "10YFR-RTE------C",
-  GR: "10YGR-HTSO-----Y", HR: "10YHR-HEP------M", HU: "10YHU-MAVIR----U",
-  IE: "10Y1001A1001A59C", IT: "10YIT-GRTN-----B", LT: "10YLT-1001A0008Q",
-  LU: "10YLU-CEGEDEL-NQ", LV: "10YLV-1001A00074", MK: "10YMK-MEPSO----8",
-  NL: "10YNL----------L", NO: "10YNO-0--------C", PL: "10YPL-AREA-----S",
-  PT: "10YPT-REN------W", RO: "10YRO-TEL------P", RS: "10YCS-SERBIATSOV",
-  SE: "10YSE-1--------K", SI: "10YSI-ELES-----O", SK: "10YSK-SEPS-----K",
+  AT: "10YAT-APG------L",
+  BE: "10YBE----------2",
+  BG: "10YCA-BULGARIA-R",
+  BY: "10Y1001A1001A51S",
+  CH: "10YCH-SWISSGRIDZ",
+  CZ: "10YCZ-CEPS-----N",
+  DE: "10Y1001A1001A83F",
+  DK: "10Y1001A1001A65H",
+  EE: "10Y1001A1001A39I",
+  ES: "10YES-REE------0",
+  FI: "10YFI-1--------U",
+  FR: "10YFR-RTE------C",
+  GR: "10YGR-HTSO-----Y",
+  HR: "10YHR-HEP------M",
+  HU: "10YHU-MAVIR----U",
+  IE: "10Y1001A1001A59C",
+  IT: "10YIT-GRTN-----B",
+  LT: "10YLT-1001A0008Q",
+  LU: "10YLU-CEGEDEL-NQ",
+  LV: "10YLV-1001A00074",
+  MK: "10YMK-MEPSO----8",
+  NL: "10YNL----------L",
+  NO: "10YNO-0--------C",
+  PL: "10YPL-AREA-----S",
+  PT: "10YPT-REN------W",
+  RO: "10YRO-TEL------P",
+  RS: "10YCS-SERBIATSOV",
+  SE: "10YSE-1--------K",
+  SI: "10YSI-ELES-----O",
+  SK: "10YSK-SEPS-----K",
 };
 
 // --- country -> sub-country zones --------------------------------------------
@@ -37,17 +57,26 @@ export const ZONES = {
   // 2021 reform — the abolished ones (BRNN/FOGN/PRGP/ROSN), the MACRO_*
   // aggregates and the virtual interconnector zones are deliberately absent.
   IT: {
-    NORD: "10Y1001A1001A73I", CNOR: "10Y1001A1001A70O", CSUD: "10Y1001A1001A71M",
-    SUD: "10Y1001A1001A788", CALA: "10Y1001C--00096J", SICI: "10Y1001A1001A75E",
+    NORD: "10Y1001A1001A73I",
+    CNOR: "10Y1001A1001A70O",
+    CSUD: "10Y1001A1001A71M",
+    SUD: "10Y1001A1001A788",
+    CALA: "10Y1001C--00096J",
+    SICI: "10Y1001A1001A75E",
     SARD: "10Y1001A1001A74G",
   },
   SE: {
-    SE1: "10Y1001A1001A44P", SE2: "10Y1001A1001A45N",
-    SE3: "10Y1001A1001A46L", SE4: "10Y1001A1001A47J",
+    SE1: "10Y1001A1001A44P",
+    SE2: "10Y1001A1001A45N",
+    SE3: "10Y1001A1001A46L",
+    SE4: "10Y1001A1001A47J",
   },
   NO: {
-    NO1: "10YNO-1--------2", NO2: "10YNO-2--------T", NO3: "10YNO-3--------J",
-    NO4: "10YNO-4--------9", NO5: "10Y1001A1001A48H",
+    NO1: "10YNO-1--------2",
+    NO2: "10YNO-2--------T",
+    NO3: "10YNO-3--------J",
+    NO4: "10YNO-4--------9",
+    NO5: "10Y1001A1001A48H",
   },
   DK: { DK1: "10YDK-1--------W", DK2: "10YDK-2--------M" },
   // EIA-930, passed through as the `respondent` facet. Both grains are offered:
@@ -56,23 +85,72 @@ export const ZONES = {
   // tail of very small BAs is omitted; many do not report a fuel-type breakdown,
   // and a respondent that returns nothing just costs a request.
   US: {
-    CAL: "CAL", CAR: "CAR", CENT: "CENT", FLA: "FLA", MIDA: "MIDA", MIDW: "MIDW",
-    NE: "NE", NW: "NW", NY: "NY", SE: "SE", SW: "SW", TEN: "TEN", TEX: "TEX",
-    AECI: "AECI", AVA: "AVA", AZPS: "AZPS", BANC: "BANC", BPAT: "BPAT",
-    CISO: "CISO", CPLE: "CPLE", DUK: "DUK", EPE: "EPE", ERCO: "ERCO",
-    FPC: "FPC", FPL: "FPL", IID: "IID", IPCO: "IPCO", ISNE: "ISNE", JEA: "JEA",
-    LDWP: "LDWP", LGEE: "LGEE", MISO: "MISO", NEVP: "NEVP", NWMT: "NWMT",
-    NYIS: "NYIS", PACE: "PACE", PACW: "PACW", PGE: "PGE", PJM: "PJM",
-    PNM: "PNM", PSCO: "PSCO", PSEI: "PSEI", SC: "SC", SCEG: "SCEG", SCL: "SCL",
-    SOCO: "SOCO", SRP: "SRP", SWPP: "SWPP", TEC: "TEC", TEPC: "TEPC",
-    TIDC: "TIDC", TPWR: "TPWR", TVA: "TVA", WACM: "WACM", WALC: "WALC",
+    CAL: "CAL",
+    CAR: "CAR",
+    CENT: "CENT",
+    FLA: "FLA",
+    MIDA: "MIDA",
+    MIDW: "MIDW",
+    NE: "NE",
+    NW: "NW",
+    NY: "NY",
+    SE: "SE",
+    SW: "SW",
+    TEN: "TEN",
+    TEX: "TEX",
+    AECI: "AECI",
+    AVA: "AVA",
+    AZPS: "AZPS",
+    BANC: "BANC",
+    BPAT: "BPAT",
+    CISO: "CISO",
+    CPLE: "CPLE",
+    DUK: "DUK",
+    EPE: "EPE",
+    ERCO: "ERCO",
+    FPC: "FPC",
+    FPL: "FPL",
+    IID: "IID",
+    IPCO: "IPCO",
+    ISNE: "ISNE",
+    JEA: "JEA",
+    LDWP: "LDWP",
+    LGEE: "LGEE",
+    MISO: "MISO",
+    NEVP: "NEVP",
+    NWMT: "NWMT",
+    NYIS: "NYIS",
+    PACE: "PACE",
+    PACW: "PACW",
+    PGE: "PGE",
+    PJM: "PJM",
+    PNM: "PNM",
+    PSCO: "PSCO",
+    PSEI: "PSEI",
+    SC: "SC",
+    SCEG: "SCEG",
+    SCL: "SCL",
+    SOCO: "SOCO",
+    SRP: "SRP",
+    SWPP: "SWPP",
+    TEC: "TEC",
+    TEPC: "TEPC",
+    TIDC: "TIDC",
+    TPWR: "TPWR",
+    TVA: "TVA",
+    WACM: "WACM",
+    WALC: "WALC",
   },
   // OpenNEM. The five NEM regions plus WEM, which is a physically separate
   // network (the South West Interconnected System around Perth) and so has its
   // own path rather than sitting under NEM.
   AU: {
-    NSW1: "NEM/NSW1", QLD1: "NEM/QLD1", SA1: "NEM/SA1",
-    TAS1: "NEM/TAS1", VIC1: "NEM/VIC1", WEM: "WEM",
+    NSW1: "NEM/NSW1",
+    QLD1: "NEM/QLD1",
+    SA1: "NEM/SA1",
+    TAS1: "NEM/TAS1",
+    VIC1: "NEM/VIC1",
+    WEM: "WEM",
   },
   // IESO. Canada's grid is provincial and only Ontario publishes a keyless
   // hourly fuel mix, so the country as a whole stays on the annual snapshot —
@@ -94,9 +172,35 @@ function iso(dt) {
   return dt.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
+// What a feed is assumed to publish at when it names no interval of its own.
+const DEFAULT_INTERVAL_MINUTES = 5;
+// NESO reports against half-hourly settlement periods.
+const NESO_SETTLEMENT_SEC = 1800;
+// "YYYY-MM-DDTHH": 13 characters, the date/time separator at index 10.
+const EIA_HOUR_FORM_LENGTH = 13;
+const ISO_T_INDEX = 10;
+const MS_PER_SECOND = 1000;
+const SECONDS_PER_HOUR = 3600;
+const MS_PER_MINUTE = 60 * MS_PER_SECOND;
+const MS_PER_HOUR = SECONDS_PER_HOUR * MS_PER_SECOND;
+const PERCENT = 100;
+const MONTH_ABBREV_LENGTH = 3;
+// Singapore's ticker numbers half-hourly periods from 1 and stamps them in SGT
+// (+08:00), which has no daylight saving to complicate the shift.
+const SG_PERIOD_MINUTES = 30;
+const SGT_OFFSET_HOURS = 8;
+const SGT_OFFSET_MS = SGT_OFFSET_HOURS * MS_PER_HOUR;
+// ENTSO-E is asked for the last three hours: enough to cover a feed that
+// publishes late, without pulling a document the parser has to sift.
+const ENTSOE_LOOKBACK_HOURS = 3;
+const ENTSOE_LOOKBACK_MS = ENTSOE_LOOKBACK_HOURS * MS_PER_HOUR;
+// Doubling with jitter: each retry waits 50-150% of its nominal delay.
+const BACKOFF_BASE = 2;
+const JITTER_MIN = 0.5;
+
 function parseDt(text) {
   let t = String(text).trim();
-  if (t.length === 13 && t[10] === "T") t += ":00:00"; // EIA hour-only form
+  if (t.length === EIA_HOUR_FORM_LENGTH && t[ISO_T_INDEX] === "T") t += ":00:00"; // EIA hour-only form
   t = t.replace(" ", "T");
   if (!/[zZ]$/.test(t) && !/[+-]\d\d:?\d\d$/.test(t)) t += "Z"; // naive -> UTC
   const d = new Date(t);
@@ -105,10 +209,10 @@ function parseDt(text) {
 }
 
 function hourWindow(instant) {
-  const start = new Date(Date.UTC(
-    instant.getUTCFullYear(), instant.getUTCMonth(), instant.getUTCDate(), instant.getUTCHours(),
-  ));
-  return [iso(start), iso(new Date(start.getTime() + 3600 * 1000))];
+  const start = new Date(
+    Date.UTC(instant.getUTCFullYear(), instant.getUTCMonth(), instant.getUTCDate(), instant.getUTCHours()),
+  );
+  return [iso(start), iso(new Date(start.getTime() + MS_PER_HOUR))];
 }
 
 function num(text) {
@@ -118,10 +222,12 @@ function num(text) {
 }
 
 function intervalMinutes(text) {
-  const t = String(text || "").trim().toLowerCase();
+  const t = String(text || "")
+    .trim()
+    .toLowerCase();
   if (t.endsWith("m")) return parseInt(t.slice(0, -1), 10);
   if (t.endsWith("h")) return parseInt(t.slice(0, -1), 10) * 60;
-  return 5;
+  return DEFAULT_INTERVAL_MINUTES;
 }
 
 // --- the parser contract ------------------------------------------------------
@@ -146,20 +252,20 @@ function series(resolutionSec, points) {
 // snapshot providers produce, and exactly the window v1 gave them.
 function hourPoint(instant, direct) {
   const [start, end] = hourWindow(instant);
-  return series(3600, [{ start, end, direct }]);
+  return series(SECONDS_PER_HOUR, [{ start, end, direct }]);
 }
 
 // How many points a complete hour holds for this resolution. 4 at PT15M, 2 for
 // NESO's half-hourly settlement periods, 1 for an hourly feed.
 export function pointsPerHour(resolutionSec) {
-  return Math.max(1, Math.round(3600 / resolutionSec));
+  return Math.max(1, Math.round(SECONDS_PER_HOUR / resolutionSec));
 }
 
 // The v1 reading: the newest point, which is what the single-reading parsers
 // returned before they were widened to a series. v1 objects are frozen, so this
 // is the adapter that keeps them byte-identical.
 export function newestReading(s) {
-  if (!s || !s.points || s.points.length === 0) return null;
+  if (!s?.points?.length) return null;
   const p = s.points[s.points.length - 1];
   return { direct: p.direct, hour_start: p.start, hour_end: p.end, source: s.source };
 }
@@ -183,15 +289,13 @@ export function parseEntsoe(xml) {
       const resM = period.match(/<resolution>([^<]+)</);
       const points = period.match(/<Point>[\s\S]*?<\/Point>/g) || [];
       if (!startM || points.length === 0) continue;
-      const step = intervalMinutes(
-        resM ? resM[1].trim().replace(/^PT/i, "") : "60m",
-      );
+      const step = intervalMinutes(resM ? resM[1].trim().replace(/^PT/i, "") : "60m");
       const start = parseDt(startM[1]);
       for (const p of points) {
         const pos = parseInt((p.match(/<position>(\d+)/) || [])[1], 10);
         const qty = parseFloat((p.match(/<quantity>([^<]+)/) || [])[1]);
         if (Number.isNaN(pos) || Number.isNaN(qty)) continue;
-        const ms = start.getTime() + step * (pos - 1) * 60000;
+        const ms = start.getTime() + step * (pos - 1) * MS_PER_MINUTE;
         if (!byInstant.has(ms)) byInstant.set(ms, { step, mix: {} });
         const slot = byInstant.get(ms);
         slot.mix[fuel] = (slot.mix[fuel] || 0) + qty;
@@ -204,7 +308,7 @@ export function parseEntsoe(xml) {
     const { step, mix } = byInstant.get(ms);
     const direct = mixToDirectIntensity(mix);
     if (direct == null) continue; // an instant present but with nothing usable
-    out.push({ start: iso(new Date(ms)), end: iso(new Date(ms + step * 60000)), direct });
+    out.push({ start: iso(new Date(ms)), end: iso(new Date(ms + step * MS_PER_MINUTE)), direct });
   }
   if (out.length === 0) {
     throw new Error("ENTSO-E document contained no usable generation data");
@@ -236,10 +340,10 @@ export function parseEia(payload) {
     const direct = mixToDirectIntensity(byPeriod.get(period));
     if (direct == null) continue;
     const start = parseDt(period);
-    out.push({ start: iso(start), end: iso(new Date(start.getTime() + 3600 * 1000)), direct });
+    out.push({ start: iso(start), end: iso(new Date(start.getTime() + MS_PER_HOUR)), direct });
   }
   if (out.length === 0) throw new Error("EIA period had no usable generation data");
-  return series(3600, out);
+  return series(SECONDS_PER_HOUR, out);
 }
 
 // --- UK NESO ------------------------------------------------------------------
@@ -257,19 +361,19 @@ export function parseUk(payload, dayPayload = null) {
   const obj = typeof payload === "string" ? JSON.parse(payload) : payload;
   const rows = obj?.data || [];
   if (rows.length === 0) throw new Error("NESO response contained no data");
-  const valueOf = (row) => row?.intensity?.actual ?? row?.intensity?.forecast;
+  const intensityOf = (row) => row?.intensity?.actual ?? row?.intensity?.forecast;
   // Checked against the newest row specifically, not "any row has a value":
   // v1 fell back to the annual figure when the current period had no intensity,
   // and widening to a series must not quietly start answering with an older one.
   const newest = rows[rows.length - 1];
-  if (valueOf(newest) == null) throw new Error("NESO period had no intensity");
+  if (intensityOf(newest) == null) throw new Error("NESO period had no intensity");
 
   const byStart = new Map();
-  let stepSec = 1800; // half-hourly settlement periods
+  let stepSec = NESO_SETTLEMENT_SEC;
   const add = (row, value) => {
     const start = parseDt(row.from);
     const end = parseDt(row.to);
-    const span = Math.round((end.getTime() - start.getTime()) / 1000);
+    const span = Math.round((end.getTime() - start.getTime()) / MS_PER_SECOND);
     if (span > 0) stepSec = span;
     byStart.set(iso(start), { start: iso(start), end: iso(end), direct: Number(value) });
   };
@@ -283,7 +387,7 @@ export function parseUk(payload, dayPayload = null) {
   // Then the current period, last and authoritative — keyed by start, so it
   // replaces the day feed's copy rather than duplicating it.
   for (const row of rows) {
-    const value = valueOf(row);
+    const value = intensityOf(row);
     if (value != null) add(row, value);
   }
 
@@ -327,16 +431,18 @@ export function parseOpennem(payload) {
   const tracks = series.map((s) => ({
     fuel: OPENNEM_FUEL_TO_FUEL[String(s.fuel_tech).toLowerCase()],
     start: parseDt(s.history.start).getTime(),
-    step: intervalMinutes(s.history.interval || "5m") * 60000,
+    step: intervalMinutes(s.history.interval || "5m") * MS_PER_MINUTE,
     data: s.history.data,
   }));
   // Latest instant every track has a value for. Taking the newest instant of
   // any single track instead would land on one a slower feed has not reached.
-  const ends = tracks.map((t) => {
-    let i = t.data.length - 1;
-    while (i >= 0 && t.data[i] == null) i -= 1;
-    return i >= 0 ? t.start + i * t.step : null;
-  }).filter((t) => t != null);
+  const ends = tracks
+    .map((t) => {
+      let i = t.data.length - 1;
+      while (i >= 0 && t.data[i] == null) i -= 1;
+      return i >= 0 ? t.start + i * t.step : null;
+    })
+    .filter((t) => t != null);
   if (ends.length === 0) throw new Error("OpenNEM series contained no values");
   const instant = Math.min(...ends);
   const mix = {};
@@ -370,16 +476,16 @@ export function parseSg(payload) {
   const share = find(sections, "Name", "Generator Type Share", "SectionData");
   const mix = {};
   for (const item of share) {
-    const pct = num(item.Value) / 100;
+    const pct = num(item.Value) / PERCENT;
     const fuel = SG_FUEL_TO_FUEL[String(item.Label).trim().toLowerCase()] || "other";
     mix[fuel] = (mix[fuel] || 0) + pct * generation;
   }
   const intensity = mixToDirectIntensity(mix);
   if (intensity == null) throw new Error("SG ticker had no usable generation share");
   const [d, mon, y] = String(obj.Date).trim().split(/\s+/);
-  const month = MONTHS[mon.slice(0, 3).toLowerCase()];
+  const month = MONTHS[mon.slice(0, MONTH_ABBREV_LENGTH).toLowerCase()];
   const period = parseInt(num(obj.Period), 10);
-  const instant = new Date(Date.UTC(+y, month, +d, 0, 30 * (period - 1)) - 8 * 3600 * 1000); // SGT +08:00
+  const instant = new Date(Date.UTC(+y, month, +d, 0, SG_PERIOD_MINUTES * (period - 1)) - SGT_OFFSET_MS);
   return hourPoint(instant, intensity);
 }
 
@@ -396,7 +502,10 @@ export function parseEskomCsv(text) {
     if (cols.every((v) => v.trim() === "")) continue;
     const d = new Date(`${head.replace(" ", "T")}+02:00`); // SAST, no DST
     if (Number.isNaN(d.getTime())) continue;
-    if (latestMs == null || d.getTime() > latestMs) { latestMs = d.getTime(); latestCols = cols; }
+    if (latestMs == null || d.getTime() > latestMs) {
+      latestMs = d.getTime();
+      latestCols = cols;
+    }
   }
   if (latestMs == null) throw new Error("Eskom CSV had no usable rows");
   const mix = {};
@@ -424,10 +533,17 @@ export function parseEskomCsv(text) {
 function zoneOffsetMs(tz, at) {
   const p = Object.fromEntries(
     new Intl.DateTimeFormat("en-US", {
-      timeZone: tz, hour12: false,
-      year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", second: "2-digit",
-    }).formatToParts(at).map((x) => [x.type, x.value]),
+      timeZone: tz,
+      hour12: false,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })
+      .formatToParts(at)
+      .map((x) => [x.type, x.value]),
   );
   const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute, +p.second);
   return asUtc - at.getTime();
@@ -475,17 +591,17 @@ export function parseIeso(xml) {
     if (intensity == null) continue; // an hour present but with no output yet
     const end = easternToUtc(y, m, d, hour);
     out.push({
-      start: iso(new Date(end.getTime() - 3600 * 1000)),
+      start: iso(new Date(end.getTime() - MS_PER_HOUR)),
       end: iso(end),
       direct: intensity,
     });
   }
   if (out.length === 0) throw new Error("IESO report had no hour with usable generation");
-  return series(3600, out);
+  return series(SECONDS_PER_HOUR, out);
 }
 
 // --- fetch wrappers -----------------------------------------------------------
-const TIMEOUT_MS = 15000;
+const TIMEOUT_MS = 15_000;
 
 // AbortSignal.timeout guards against a provider hanging the whole run.
 async function get(url, kind = "json") {
@@ -494,18 +610,24 @@ async function get(url, kind = "json") {
   return kind === "text" ? resp.text() : resp.json();
 }
 
-function pad(n) { return String(n).padStart(2, "0"); }
+function pad(n) {
+  return String(n).padStart(2, "0");
+}
 
 export async function fetchEntsoe(code, token, zone = null) {
   const domain = zone ? ZONES[code]?.[zone] : ENTSOE_DOMAIN[code];
   if (!domain) throw new Error(`no ENTSO-E domain for ${code}${zone ? `/${zone}` : ""}`);
   const end = new Date();
-  const start = new Date(end.getTime() - 3 * 3600 * 1000);
+  const start = new Date(end.getTime() - ENTSOE_LOOKBACK_MS);
   const fmt = (d) => `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}${pad(d.getUTCHours())}00`;
   const url = new URL("https://web-api.tp.entsoe.eu/api");
   url.search = new URLSearchParams({
-    documentType: "A75", processType: "A16", in_Domain: domain,
-    periodStart: fmt(start), periodEnd: fmt(end), securityToken: token,
+    documentType: "A75",
+    processType: "A16",
+    in_Domain: domain,
+    periodStart: fmt(start),
+    periodEnd: fmt(end),
+    securityToken: token,
   }).toString();
   return parseEntsoe(await get(url, "text"));
 }
@@ -513,9 +635,13 @@ export async function fetchEntsoe(code, token, zone = null) {
 export async function fetchEia(token, respondent = "US48") {
   const url = new URL("https://api.eia.gov/v2/electricity/rto/fuel-type-data/data/");
   url.search = new URLSearchParams({
-    api_key: token, frequency: "hourly", "data[0]": "value",
-    "facets[respondent][]": respondent, "sort[0][column]": "period",
-    "sort[0][direction]": "desc", length: "200",
+    api_key: token,
+    frequency: "hourly",
+    "data[0]": "value",
+    "facets[respondent][]": respondent,
+    "sort[0][column]": "period",
+    "sort[0][direction]": "desc",
+    length: "200",
   }).toString();
   return parseEia(await get(url));
 }
@@ -550,16 +676,16 @@ export async function fetchIeso() {
   // GenOutputCapability, not GenOutputbyFuelHourly: the latter is the tidier
   // shape but is republished once a day and a day behind, which is no use to an
   // hourly pipeline. This one is 70 KB, current-day, and updated every hour.
-  return parseIeso(await get(
-    "https://reports-public.ieso.ca/public/GenOutputCapability/PUB_GenOutputCapability.xml",
-    "text",
-  ));
+  return parseIeso(
+    await get("https://reports-public.ieso.ca/public/GenOutputCapability/PUB_GenOutputCapability.xml", "text"),
+  );
 }
 
 export async function fetchEskom() {
   const now = new Date();
-  const url = "https://www.eskom.co.za/dataportal/wp-content/uploads/"
-    + `${now.getUTCFullYear()}/${pad(now.getUTCMonth() + 1)}/Station_Build_Up.csv`;
+  const url =
+    "https://www.eskom.co.za/dataportal/wp-content/uploads/" +
+    `${now.getUTCFullYear()}/${pad(now.getUTCMonth() + 1)}/Station_Build_Up.csv`;
   return parseEskomCsv(await get(url, "text"));
 }
 
@@ -613,13 +739,13 @@ export async function measuredLastHour(
   for (let i = 0; i < attempts; i += 1) {
     try {
       const s = await fetch_();
-      if (!s || !s.points || s.points.length === 0) throw new Error("empty series");
+      if (!s?.points?.length) throw new Error("empty series");
       return { ...s, source: provider };
     } catch {
       // Exponential (1s, 2s), jittered: the pipeline fires every US balancing
       // authority at EIA at once, so a deterministic backoff would have them
       // all rate-limited together and then retry together, in step.
-      if (i < attempts - 1) await sleep(backoffMs * 2 ** i * (0.5 + Math.random()));
+      if (i < attempts - 1) await sleep(backoffMs * BACKOFF_BASE ** i * (JITTER_MIN + Math.random()));
     }
   }
   return null; // every attempt failed -> annual fallback, or no zone reading

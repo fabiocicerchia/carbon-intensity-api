@@ -35,3 +35,8 @@ jobs:
         uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7  # v2.2.0
         with:
           fail-on-error: true
+
+      # FC-TS-016 - Biome is the linter and formatter for JS/TS. Pinned so the
+      # same commit lints identically on any day (FC-GEN-059).
+      - name: biome
+        run: npx --yes @biomejs/biome@2.5.6 ci --files-ignore-unknown=true --no-errors-on-unmatched .

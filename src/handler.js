@@ -21,11 +21,13 @@
 //   /v1/latest.json           combined snapshot
 //   /v1/countries             supported countries (+ data source per country)
 
-import { ATTRIBUTION, ProviderlessZone, UnknownCountry, lastHour, listCountries, resolveCode } from "./data.js";
+import { ATTRIBUTION, lastHour, listCountries, ProviderlessZone, resolveCode, UnknownCountry } from "./data.js";
 import { measuredLastHour, zonesFor } from "./live.js";
 
-const SOURCE_URL = "https://github.com/fabiocicerchia/carbon-intensity-api";
 const STALE_AFTER_SECONDS = 3900; // a fresh snapshot is expected hourly
+const MS_PER_SECOND = 1000;
+const HTTP_NOT_FOUND = 404;
+const HTTP_SERVICE_UNAVAILABLE = 503;
 
 function json(body, status = 200) {
   return new Response(`${JSON.stringify(body, null, 2)}\n`, {
@@ -41,7 +43,7 @@ function json(body, status = 200) {
 function isStale(doc, now) {
   const gen = Date.parse(doc.generated_at);
   if (Number.isNaN(gen)) return true;
-  return (now - gen) / 1000 > STALE_AFTER_SECONDS;
+  return (now - gen) / MS_PER_SECOND > STALE_AFTER_SECONDS;
 }
 
 export async function handleRequest(request, env = {}, store = null, now = Date.now()) {
@@ -50,9 +52,12 @@ export async function handleRequest(request, env = {}, store = null, now = Date.
 
   // Landing page (served from the deployed data/ dir).
   if (path === "/" || path === "/index.html") {
-    const html = store && await store.get("index.html");
+    const html = store && (await store.get("index.html"));
     if (html) return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
-    return json({ service: "carbon-intensity-api", endpoints: ["/v1/last-hour/<CODE>", "/v1/zones/<CODE>/<ZONE>", "/v1/latest.json", "/v1/countries"] });
+    return json({
+      service: "carbon-intensity-api",
+      endpoints: ["/v1/last-hour/<CODE>", "/v1/zones/<CODE>/<ZONE>", "/v1/latest.json", "/v1/countries"],
+    });
   }
 
   if (path === "/v1/countries") {
@@ -61,9 +66,9 @@ export async function handleRequest(request, env = {}, store = null, now = Date.
   }
 
   if (path === "/v1/latest.json") {
-    const latest = store && await store.get("v1/latest.json");
+    const latest = store && (await store.get("v1/latest.json"));
     if (latest) return json(JSON.parse(latest));
-    return json({ detail: "No precomputed snapshot yet." }, 503);
+    return json({ detail: "No precomputed snapshot yet." }, HTTP_SERVICE_UNAVAILABLE);
   }
 
   // Zone lookup: /v1/zones/<CODE>/<ZONE>. A separate prefix, not a child of
@@ -76,19 +81,22 @@ export async function handleRequest(request, env = {}, store = null, now = Date.
       code = resolveCode(decodeURIComponent(z[1]));
     } catch (e) {
       if (e instanceof UnknownCountry) {
-        return json({ detail: `Unknown country ${JSON.stringify(z[1])}. See /v1/countries.` }, 404);
+        return json({ detail: `Unknown country ${JSON.stringify(z[1])}. See /v1/countries.` }, HTTP_NOT_FOUND);
       }
       throw e;
     }
     const zone = decodeURIComponent(z[2]).toUpperCase();
     const known = zonesFor(code);
     if (!known.includes(zone)) {
-      return json({
-        detail: known.length
-          ? `Unknown zone ${JSON.stringify(zone)} for ${code}.`
-          : `${code} has no sub-country zones.`,
-        zones: known,
-      }, 404);
+      return json(
+        {
+          detail: known.length
+            ? `Unknown zone ${JSON.stringify(zone)} for ${code}.`
+            : `${code} has no sub-country zones.`,
+          zones: known,
+        },
+        HTTP_NOT_FOUND,
+      );
     }
     let cachedDoc = null;
     if (store) {
@@ -113,7 +121,7 @@ export async function handleRequest(request, env = {}, store = null, now = Date.
       // says how old, and the caller can judge. 404 is only for a zone that
       // has never had data at all.
       if (cachedDoc) return json(cachedDoc);
-      return json({ detail: `No data for ${code}/${zone}.` }, 404);
+      return json({ detail: `No data for ${code}/${zone}.` }, HTTP_NOT_FOUND);
     }
   }
 
@@ -126,7 +134,7 @@ export async function handleRequest(request, env = {}, store = null, now = Date.
       code = resolveCode(decodeURIComponent(m[1]));
     } catch (e) {
       if (e instanceof UnknownCountry) {
-        return json({ detail: `Unknown country ${JSON.stringify(m[1])}. See /v1/countries.` }, 404);
+        return json({ detail: `Unknown country ${JSON.stringify(m[1])}. See /v1/countries.` }, HTTP_NOT_FOUND);
       }
       throw e;
     }
@@ -142,5 +150,5 @@ export async function handleRequest(request, env = {}, store = null, now = Date.
     return json(reading);
   }
 
-  return json({ detail: "Not found." }, 404);
+  return json({ detail: "Not found." }, HTTP_NOT_FOUND);
 }
