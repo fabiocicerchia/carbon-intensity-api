@@ -258,3 +258,32 @@ and cross-checked against it); IPCC AR6 (factors); ENTSO-E Transparency Platform
 (CC BY 4.0, adapted); U.S. Energy Information Administration (generation data via
 the EIA API). Intensity figures are computed here and are not published or
 endorsed by those operators — see [`NOTICE`](./NOTICE).
+
+## Make targets
+
+`make help` lists them. Every repository in this estate exposes the same eight
+verbs, so you do not have to read a Makefile to find out how to build or run it
+(FC-GEN-057).
+
+| Verb     | What it does here                                            |
+| -------- | ------------------------------------------------------------ |
+| `build`  | `npm run pipeline:offline` — `data/` from the snapshot        |
+| `run`    | `npm run serve` — the Node server on `PORT` (default 8000)    |
+| `test`   | `npm test` — `node:test`                                      |
+| `lint`   | biome, at the version `code-quality.yml` pins                 |
+| `format` | the same biome, writing instead of complaining                |
+
+Beyond the eight: `sync` runs the live pipeline and pushes `data/` to the
+bucket.
+
+### Not applicable
+
+Three verbs have nothing to do here. They exit 0 and say why rather than
+pretending to work (FC-GEN-058):
+
+- `setup` — Node >= 20 is the only requirement, and there is no pre-commit
+  config in this repo.
+- `install` — `package.json` declares no dependencies and no dev dependencies,
+  on purpose.
+- `analyze` — nothing to scan for dependency vulnerabilities; CodeQL reads the
+  source from its own workflow.
