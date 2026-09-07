@@ -1,5 +1,5 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import { mixToDirectIntensity } from "../src/factors.js";
 
 test("weights by generation", () => {

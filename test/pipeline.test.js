@@ -1,7 +1,7 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildSnapshot, countryDocs, writeAll } from "../src/pipeline.js";
+import { test } from "node:test";
 import { COUNTRIES } from "../src/data.js";
+import { buildSnapshot, countryDocs, writeAll } from "../src/pipeline.js";
 
 test("offline snapshot covers every country", async () => {
   const snap = await buildSnapshot({ useLive: false, generatedAt: "2026-08-08T14:00:00Z" });
@@ -24,7 +24,9 @@ test("countryDocs stamp generated_at + attribution", async () => {
 test("writeAll emits latest + per-country + index", async () => {
   const snap = await buildSnapshot({ useLive: false, generatedAt: "t" });
   const files = {};
-  const { written: n } = await writeAll(snap, async (path, body) => { files[path] = body; });
+  const { written: n } = await writeAll(snap, async (path, body) => {
+    files[path] = body;
+  });
   assert.equal(n, snap.count);
   assert.ok(files["v1/latest.json"]);
   assert.ok(files["v1/last-hour/DE"]);
@@ -33,12 +35,20 @@ test("writeAll emits latest + per-country + index", async () => {
   assert.ok(index.countries.includes("FR"));
 });
 
-
 test("writeAll leaves an unchanged annual country alone until it is a week old", async () => {
   const files = {};
-  const put = async (p, b) => { files[p] = b; };
+  const put = async (p, b) => {
+    files[p] = b;
+  };
   const get = async (p) => files[p] ?? null;
-  const country = { country_code: "AF", basis: "annual-average", direct: 131, lifecycle: 156, consumption_direct: 158, consumption_lifecycle: 183 };
+  const country = {
+    country_code: "AF",
+    basis: "annual-average",
+    direct: 131,
+    lifecycle: 156,
+    consumption_direct: 158,
+    consumption_lifecycle: 183,
+  };
   const snap = (at) => ({ generated_at: at, unit: "gCO2eq/kWh", countries: { AF: country }, zones: {} });
 
   const first = await writeAll(snap("2026-08-01T00:00:00Z"), put, get);
@@ -59,7 +69,9 @@ test("writeAll leaves an unchanged annual country alone until it is a week old",
 
 test("writeAll republishes an annual country the moment its figure changes", async () => {
   const files = {};
-  const put = async (p, b) => { files[p] = b; };
+  const put = async (p, b) => {
+    files[p] = b;
+  };
   const get = async (p) => files[p] ?? null;
   const base = { country_code: "AF", basis: "annual-average", direct: 131, lifecycle: 156 };
   await writeAll({ generated_at: "2026-08-01T00:00:00Z", countries: { AF: base }, zones: {} }, put, get);
@@ -71,7 +83,9 @@ test("writeAll republishes an annual country the moment its figure changes", asy
 
 test("writeAll republishes when the document shape changes, not just its values", async () => {
   const files = {};
-  const put = async (p, b) => { files[p] = b; };
+  const put = async (p, b) => {
+    files[p] = b;
+  };
   const get = async (p) => files[p] ?? null;
   const base = { country_code: "AF", basis: "annual-average", direct: 131, hour_start: "2026-08-01T00:00:00Z" };
   await writeAll({ generated_at: "2026-08-01T00:00:00Z", countries: { AF: base }, zones: {} }, put, get);

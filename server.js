@@ -8,7 +8,10 @@ import { createServer } from "node:http";
 import { handleRequest } from "./src/handler.js";
 import { fsStore } from "./src/storage.js";
 
-const PORT = Number(process.env.PORT || 8000);
+const DEFAULT_PORT = 8000;
+const HTTP_INTERNAL_ERROR = 500;
+
+const PORT = Number(process.env.PORT || DEFAULT_PORT);
 const DATA_DIR = process.env.DATA_DIR || "data";
 const store = fsStore(DATA_DIR);
 
@@ -24,7 +27,7 @@ const server = createServer(async (req, res) => {
     // deployment to anyone who can provoke a 500 and gives them back nothing
     // they are owed (CodeQL js/stack-trace-exposure).
     console.error("carbon-intensity-api: unhandled request error:", err);
-    res.writeHead(500, { "content-type": "application/json" });
+    res.writeHead(HTTP_INTERNAL_ERROR, { "content-type": "application/json" });
     res.end(JSON.stringify({ detail: "Internal error." }));
   }
 });
