@@ -13,7 +13,7 @@ PORT ?= 8000
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
-	  awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
 
 # The offline pipeline, deliberately: it builds data/ from the committed annual
 # snapshot, so it is reproducible and needs no provider tokens. `make sync` is
