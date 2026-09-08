@@ -33,16 +33,16 @@ the request path to read a query string.
 
 ### v2 — use this
 
-| Path | Returns |
-|------|---------|
-| `/v2/<CODE>/past-hour` | The last **completed** clock hour: the mean of every point in it. Immutable once published. |
-| `/v2/<CODE>/current-hour` | The hour **in progress**: the mean of the points so far. Moves between runs. |
-| `/v2/<CODE>/history/<YYYY-MM-DD>` | One UTC day of hourly means. |
-| `/v2/<CODE>/yearly` | The annual average. Every country has one. |
-| `/v2/<CODE>/<ZONE>/…` | The same three hourly routes for a bidding zone / balancing region — `/v2/IT/SICI/past-hour` |
-| `/v2/countries.json` | Every country: metadata, zones, realtime availability **and** annual figures |
-| `/v2/past-hour.json` | The measured countries' last completed hour, in one document |
-| `/v2/openapi.json` | The contract, generated from the same data the API serves |
+| Path                              | Returns                                                                                      |
+| --------------------------------- | -------------------------------------------------------------------------------------------- |
+| `/v2/<CODE>/past-hour`            | The last **completed** clock hour: the mean of every point in it. Immutable once published.  |
+| `/v2/<CODE>/current-hour`         | The hour **in progress**: the mean of the points so far. Moves between runs.                 |
+| `/v2/<CODE>/history/<YYYY-MM-DD>` | One UTC day of hourly means.                                                                 |
+| `/v2/<CODE>/yearly`               | The annual average. Every country has one.                                                   |
+| `/v2/<CODE>/<ZONE>/…`             | The same three hourly routes for a bidding zone / balancing region — `/v2/IT/SICI/past-hour` |
+| `/v2/countries.json`              | Every country: metadata, zones, realtime availability **and** annual figures                 |
+| `/v2/past-hour.json`              | The measured countries' last completed hour, in one document                                 |
+| `/v2/openapi.json`                | The contract, generated from the same data the API serves                                    |
 
 **Path grammar:** an UPPERCASE segment is a code, a lowercase-hyphenated one is
 a resource. So `/v2/IT/SICI/past-hour` reads unambiguously as country, zone,
@@ -53,11 +53,11 @@ marker. ISO-2 only in v2 — the ISO-3 aliases are a v1 feature.
 generation. Everything else 404s, rather than serving a yearly constant under a
 name that promises an hour:
 
-| | `/yearly` | `/past-hour`, `/current-hour`, `/history` |
-|---|---|---|
-| countries with a live provider | yes | yes |
-| countries without one | yes | **404** |
-| zones | **404** | yes |
+|                                | `/yearly` | `/past-hour`, `/current-hour`, `/history` |
+| ------------------------------ | --------- | ----------------------------------------- |
+| countries with a live provider | yes       | yes                                       |
+| countries without one          | yes       | **404**                                   |
+| zones                          | **404**   | yes                                       |
 
 Zones have no annual figure because the annual dataset is country-level — the
 same reason they are measured-only.
@@ -99,13 +99,13 @@ API's. Feeding them to a JSON parser is the most likely way to break a client.
 Still served, still refreshed every run, unchanged in shape. It will be removed;
 prefer v2 for anything new.
 
-| Path | Returns |
-|------|---------|
-| `/v1/last-hour/<CODE>` | Newest **data point** for one country (ISO-2 or ISO-3) |
+| Path                      | Returns                                                                               |
+| ------------------------- | ------------------------------------------------------------------------------------- |
+| `/v1/last-hour/<CODE>`    | Newest **data point** for one country (ISO-2 or ISO-3)                                |
 | `/v1/zones/<CODE>/<ZONE>` | Same for a bidding zone / balancing region — `IT/SICI`, `SE/SE3`, `US/TEX`, `AU/NSW1` |
-| `/v1/latest.json` | All countries in one snapshot |
-| `/v1/countries` | Supported countries (with `realtime_available`, `zones` + data source) |
-| `/` | HTML landing page |
+| `/v1/latest.json`         | All countries in one snapshot                                                         |
+| `/v1/countries`           | Supported countries (with `realtime_available`, `zones` + data source)                |
+| `/`                       | HTML landing page                                                                     |
 
 `/v1/last-hour/` does not return an hour. It returns the newest point the
 operator published, which is 15 minutes wide for ENTSO-E and an hour for EIA —
@@ -119,20 +119,20 @@ sources endpoint isn't needed.
 
 ### Migrating
 
-| v1 | v2 |
-|----|----|
-| `/v1/last-hour/IT` | `/v2/IT/current-hour` (partial, live) or `/v2/IT/past-hour` (complete) |
-| `/v1/zones/IT/SICI` | `/v2/IT/SICI/current-hour` |
-| `/v1/latest.json` | `/v2/countries.json` for the static picture, `/v2/past-hour.json` for live |
-| `/v1/countries` | `/v2/countries.json` — same fields plus the four annual figures |
-| `hour_start` / `hour_end` | `period_start` / `period_end` (+ `resolution_sec`) |
-| annual figure via `/v1/last-hour/<CODE>` | `/v2/<CODE>/yearly` |
+| v1                                       | v2                                                                         |
+| ---------------------------------------- | -------------------------------------------------------------------------- |
+| `/v1/last-hour/IT`                       | `/v2/IT/current-hour` (partial, live) or `/v2/IT/past-hour` (complete)     |
+| `/v1/zones/IT/SICI`                      | `/v2/IT/SICI/current-hour`                                                 |
+| `/v1/latest.json`                        | `/v2/countries.json` for the static picture, `/v2/past-hour.json` for live |
+| `/v1/countries`                          | `/v2/countries.json` — same fields plus the four annual figures            |
+| `hour_start` / `hour_end`                | `period_start` / `period_end` (+ `resolution_sec`)                         |
+| annual figure via `/v1/last-hour/<CODE>` | `/v2/<CODE>/yearly`                                                        |
 
 The four figures are the corners of two axes — scope (combustion only vs plus
 upstream) and boundary (generated here vs consumed here):
 
 |                     | Production-based | Consumption-based       |
-|---------------------|------------------|-------------------------|
+| ------------------- | ---------------- | ----------------------- |
 | **Combustion only** | `direct`         | `consumption_direct`    |
 | **Plus upstream**   | `lifecycle`      | `consumption_lifecycle` |
 
@@ -210,15 +210,15 @@ Live readings compute operational intensity from each grid's generation mix
 country. Each provider is a pure `parse*` function (unit-tested) + a thin
 `fetch*` wrapper.
 
-| Provider | Countries | Token |
-|----------|-----------|-------|
-| UK NESO | `GB` | none |
-| ONS | `BR` | none |
-| OpenNEM / OpenElectricity | `AU` | none |
-| EMC | `SG` | none |
-| Eskom | `ZA` | none |
-| ENTSO-E | ~38 European zones (incl. `LU`, `MK`, `BY`) | `ENTSOE_TOKEN` |
-| EIA | `US` | `EIA_TOKEN` |
+| Provider                  | Countries                                   | Token          |
+| ------------------------- | ------------------------------------------- | -------------- |
+| UK NESO                   | `GB`                                        | none           |
+| ONS                       | `BR`                                        | none           |
+| OpenNEM / OpenElectricity | `AU`                                        | none           |
+| EMC                       | `SG`                                        | none           |
+| Eskom                     | `ZA`                                        | none           |
+| ENTSO-E                   | ~38 European zones (incl. `LU`, `MK`, `BY`) | `ENTSOE_TOKEN` |
+| EIA                       | `US`                                        | `EIA_TOKEN`    |
 
 Set tokens in the environment you run the pipeline in (they're only needed there).
 Mexico has no provider — CENACE publishes generation by technology only as a
@@ -265,13 +265,13 @@ endorsed by those operators — see [`NOTICE`](./NOTICE).
 verbs, so you do not have to read a Makefile to find out how to build or run it
 (FC-GEN-057).
 
-| Verb     | What it does here                                            |
-| -------- | ------------------------------------------------------------ |
-| `build`  | `npm run pipeline:offline` — `data/` from the snapshot        |
-| `run`    | `npm run serve` — the Node server on `PORT` (default 8000)    |
-| `test`   | `npm test` — `node:test`                                      |
-| `lint`   | biome, at the version `code-quality.yml` pins                 |
-| `format` | the same biome, writing instead of complaining                |
+| Verb     | What it does here                                          |
+| -------- | ---------------------------------------------------------- |
+| `build`  | `npm run pipeline:offline` — `data/` from the snapshot     |
+| `run`    | `npm run serve` — the Node server on `PORT` (default 8000) |
+| `test`   | `npm test` — `node:test`                                   |
+| `lint`   | biome, at the version `code-quality.yml` pins              |
+| `format` | the same biome, writing instead of complaining             |
 
 Beyond the eight: `sync` runs the live pipeline and pushes `data/` to the
 bucket.
