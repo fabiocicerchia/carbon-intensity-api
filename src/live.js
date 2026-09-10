@@ -5,8 +5,10 @@
 
 import {
   EIA_FUEL_TO_FUEL,
+  ELEXON_FUEL_TO_FUEL,
   ENTSOE_PSR_TO_FUEL,
   ESKOM_INDEX_TO_FUEL,
+  energyChartsFuel,
   IESO_FUEL_TO_FUEL,
   mixToDirectIntensity,
   ONS_FUEL_TO_FUEL,
@@ -15,11 +17,16 @@ import {
 } from "./factors.js";
 
 // --- country -> ENTSO-E domain EIC code ---------------------------------------
+// Belarus is deliberately absent despite having an EIC code (10Y1001A1001A51S).
+// It is in the registry as an interconnection partner, not as a member of the
+// ENTSO-E area — it sits in BRELL with Russia — and 16.1.B&C answers
+// acknowledgement 999 for every window of it. Two full backfills, eighteen
+// windows, nothing. Listing it cost a request every run and advertised a live
+// provider for a country that has never had one.
 export const ENTSOE_DOMAIN = {
   AT: "10YAT-APG------L",
   BE: "10YBE----------2",
   BG: "10YCA-BULGARIA-R",
-  BY: "10Y1001A1001A51S",
   CH: "10YCH-SWISSGRIDZ",
   CZ: "10YCZ-CEPS-----N",
   DE: "10Y1001A1001A83F",
@@ -167,6 +174,87 @@ export function zonesFor(code) {
 // ENTSO-E domain goes there; the rest have none.
 const PROVIDERS = { GB: "NESO", US: "EIA", BR: "ONS", AU: "OpenNEM", SG: "EMC", ZA: "Eskom", CA: "IESO" };
 
+// Fallback feeds, tried in order after a country's primary. A country keeps one
+// source in normal operation and only moves when the primary has nothing at all
+// — "first that works", not "freshest wins", because the latter would flip
+// sources every time two lags crossed and put steps in the series that read as
+// real changes in the grid.
+//
+// Fallbacks fail safe: a fetcher that errors or a parser that does not recognise
+// a payload simply hands on to the next, and a country with no working fallback
+// behaves exactly as it did before it had one.
+export const FALLBACK_PROVIDERS = {
+  // Energy-Charts (Fraunhofer ISE) is listed for these two only. It carries most
+  // of Europe from one endpoint, and was configured for all 30 ENTSO-E countries
+  // until it was measured: during the 2026-08-29 publication outage it ran 6.1 h
+  // behind for DE and 4.9 h for CH but 17.1 h for FR, 16.6 h for IT and 15.9 h
+  // for PL — the last stopping exactly where ENTSO-E stopped. For the other 28 it
+  // re-publishes the primary, so it was removed rather than left standing as
+  // redundancy that is not there.
+  DE: ["Energy-Charts"],
+  CH: ["Energy-Charts"],
+  // BMRS settlement metering: a separate path from NESO's modelled intensity.
+  GB: ["Elexon"],
+};
+
+// What a fallback actually protects against, keyed `CODE:Provider`. A second
+// feed is not automatically redundancy, and the difference is not a property of
+// the feed — it is a property of the pair, because the same aggregator can be
+// independent for one country and downstream of the primary for the next.
+//
+//   "independent" the feed has its own path to the meters. Covers the primary
+//                 going down for any reason, publication outages included.
+//   "api-only"    the feed re-publishes the primary. Covers the primary's API
+//                 failing while the data exists — a real and distinct failure —
+//                 and nothing at all when the primary stops publishing.
+//
+// Measured on 2026-08-30 while ENTSO-E was recovering: Energy-Charts was 6.1 h
+// behind for DE and 4.9 h for CH but 17.1 h for FR, 16.6 h for IT and 15.9 h for
+// PL, the last stopping exactly where ENTSO-E stopped. So it is assumed
+// downstream unless a measurement says otherwise, which is the safe direction to
+// be wrong in: claiming redundancy that is not there is the failure this table
+// exists to prevent.
+export const FALLBACK_COVERAGE = {
+  "DE:Energy-Charts": "independent",
+  "CH:Energy-Charts": "independent",
+  "GB:Elexon": "independent",
+};
+
+// "independent" once a country has any fallback at all, because a fallback that
+// is not independent cannot be reached — see providersFor. "none" otherwise.
+export function redundancyFor(code, zone = null) {
+  return providersFor(code, zone).length > 1 ? "independent" : "none";
+}
+// Provenance belongs to the FEED, not to the country. `sources.json` is keyed by
+// country and describes the annual dataset's source, which is right for
+// /yearly and wrong for an hourly reading: GB documents were carrying Elexon's
+// URL under NESO's name, and FR's carried RTE's while the data came from
+// ENTSO-E. With fallbacks a country has no single answer at all, so the hourly
+// documents now take their `data_source` from whichever feed actually replied.
+//
+// Each URL is the endpoint this repo actually calls, so the attribution cannot
+// drift from the code the way a hand-maintained table does.
+export const PROVIDER_SOURCES = {
+  "ENTSO-E": { name: "ENTSO-E", url: "https://web-api.tp.entsoe.eu/api" },
+  NESO: { name: "NESO", url: "https://api.carbonintensity.org.uk/" },
+  EIA: { name: "EIA", url: "https://api.eia.gov/v2/electricity/rto/fuel-type-data/" },
+  ONS: { name: "ONS", url: "https://tr.ons.org.br/Content/GetBalancoEnergetico/null" },
+  OpenNEM: { name: "OpenNEM", url: "https://data.openelectricity.org.au/" },
+  EMC: { name: "EMC", url: "https://www.emcsg.com/ChartServer/blue/ticker" },
+  Eskom: { name: "Eskom", url: "https://www.eskom.co.za/dataportal/" },
+  Elexon: { name: "Elexon BMRS", url: "https://data.elexon.co.uk/bmrs/api/v1/datasets/FUELINST" },
+  IESO: { name: "IESO", url: "https://reports-public.ieso.ca/public/GenOutputCapability/" },
+  "Energy-Charts": { name: "Energy-Charts (Fraunhofer ISE)", url: "https://api.energy-charts.info/" },
+};
+
+// What a measured hourly document should say about where its figure came from.
+// Falls back to the country's annual-dataset entry only for a provider with no
+// entry here, so an unknown feed degrades to today's behaviour rather than to
+// nothing.
+export function providerSource(provider) {
+  return PROVIDER_SOURCES[provider] || null;
+}
+
 // --- helpers -----------------------------------------------------------------
 function iso(dt) {
   return dt.toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -179,10 +267,14 @@ const NESO_SETTLEMENT_SEC = 1800;
 // "YYYY-MM-DDTHH": 13 characters, the date/time separator at index 10.
 const EIA_HOUR_FORM_LENGTH = 13;
 const ISO_T_INDEX = 10;
+const ISO_DATE_LENGTH = 10;
+const ISO_HOUR_LENGTH = 13;
 const MS_PER_SECOND = 1000;
+const SECONDS_PER_MINUTE = 60;
 const SECONDS_PER_HOUR = 3600;
-const MS_PER_MINUTE = 60 * MS_PER_SECOND;
+const MS_PER_MINUTE = SECONDS_PER_MINUTE * MS_PER_SECOND;
 const MS_PER_HOUR = SECONDS_PER_HOUR * MS_PER_SECOND;
+const HOURS_PER_DAY = 24;
 const PERCENT = 100;
 const MONTH_ABBREV_LENGTH = 3;
 // Singapore's ticker numbers half-hourly periods from 1 and stamps them in SGT
@@ -190,10 +282,17 @@ const MONTH_ABBREV_LENGTH = 3;
 const SG_PERIOD_MINUTES = 30;
 const SGT_OFFSET_HOURS = 8;
 const SGT_OFFSET_MS = SGT_OFFSET_HOURS * MS_PER_HOUR;
-// ENTSO-E is asked for the last three hours: enough to cover a feed that
-// publishes late, without pulling a document the parser has to sift.
-const ENTSOE_LOOKBACK_HOURS = 3;
-const ENTSOE_LOOKBACK_MS = ENTSOE_LOOKBACK_HOURS * MS_PER_HOUR;
+// FUELINST publishes every five minutes; this is the assumption used only when
+// there is a single instant and no spacing to read the cadence from.
+const ELEXON_FALLBACK_STEP_SEC = 300;
+const ELEXON_LOOKBACK_HOURS = 2;
+const ENERGY_CHARTS_LOOKBACK_HOURS = 24;
+// How much of a provider's error body is worth quoting back in the message.
+const ERROR_BODY_CHARS = 300;
+// 5xx is the provider struggling, 429 is it shedding load; both are worth
+// another attempt, and a 4xx is the request itself.
+const HTTP_SERVER_ERROR = 500;
+const HTTP_TOO_MANY_REQUESTS = 429;
 // Doubling with jitter: each retry waits 50-150% of its nominal delay.
 const BACKOFF_BASE = 2;
 const JITTER_MIN = 0.5;
@@ -226,14 +325,14 @@ function intervalMinutes(text) {
     .trim()
     .toLowerCase();
   if (t.endsWith("m")) return parseInt(t.slice(0, -1), 10);
-  if (t.endsWith("h")) return parseInt(t.slice(0, -1), 10) * 60;
+  if (t.endsWith("h")) return parseInt(t.slice(0, -1), 10) * SECONDS_PER_MINUTE;
   return DEFAULT_INTERVAL_MINUTES;
 }
 
 // --- the parser contract ------------------------------------------------------
 // Every parse* returns a SERIES: { resolution_sec, points: [{start, end, direct}] },
 // oldest point first. Providers were publishing several points per response all
-// along — ENTSO-E's A75 covers three hours at PT15M, EIA sorts 200 hourly rows —
+// along — ENTSO-E's A75 covers the requested window at PT15M, EIA sorts 200 hourly rows —
 // and every parser used to keep only the newest and drop the rest, which is why
 // an hourly *mean* was not computable and history had to be sampled one run at a
 // time.
@@ -271,7 +370,61 @@ export function newestReading(s) {
 }
 
 // --- ENTSO-E (dependency-free XML extraction of A75) --------------------------
+// Upper bound on how many step-slots one Period may expand to. Two days at
+// PT15M — far beyond the twelve hours we ask for, and small enough that a
+// document declaring a nonsense interval cannot run the machine out of memory.
+const SLOTS_PER_HOUR_AT_PT15M = 4;
+const MAX_PERIOD_DAYS = 2;
+const MAX_PERIOD_SLOTS = SLOTS_PER_HOUR_AT_PT15M * HOURS_PER_DAY * MAX_PERIOD_DAYS;
+
+// Mark a failure the provider will repeat verbatim. Retrying a refusal is not
+// resilience — the platform answered, and it will answer the same way one and
+// three seconds later. During the 2026-08-29 maintenance the retries turned 48
+// pointless requests per run into 144 of them, three times an hour, against a
+// service that was down. What actually rides out an outage that long is the
+// schedule (a run every 20 minutes) and HOURLY_MAX_AGE_SECONDS holding the
+// routes up meanwhile; in-run backoff is for a dropped connection.
+function notRetryable(err) {
+  err.retryable = false;
+  return err;
+}
+
+// A provider that answered, and had nothing to say. Distinct from one that
+// could not be reached: a retry cannot conjure rows that the publisher has not
+// published, and a backfill that ends empty for this reason is not waiting on
+// anything — the series simply has no data for the window, or at all.
+function noData(err) {
+  err.empty = true;
+  return notRetryable(err);
+}
+
 export function parseEntsoe(xml) {
+  // ENTSO-E answers in three shapes and only one of them is a document. Telling
+  // them apart here is the difference between a run log that says why the data
+  // is missing and one that says "no usable generation data" for every cause
+  // there is — which is what it said through a 22-hour platform outage.
+  if (/<Acknowledgement_MarketDocument/.test(xml)) {
+    // A refusal, but a well-formed one: the platform is up and answering. Code
+    // 999 with "No matching data found" means it holds nothing for the window,
+    // which is a provider gap; anything else is usually the request or the
+    // token. Both belong in the log verbatim — neither carries a credential.
+    const code = (xml.match(/<code>([^<]*)</) || [])[1] || "?";
+    const text = (xml.match(/<text>([^<]*)</) || [])[1] || "no reason given";
+    throw noData(new Error(`ENTSO-E acknowledgement ${code}: ${text}`));
+  }
+  if (!/<GL_MarketDocument/.test(xml)) {
+    // Neither a document nor a refusal. In practice the maintenance page —
+    // "Service Temporarily Unavailable" as HTML, which is not always served
+    // with a 5xx and so can arrive here looking like a successful fetch.
+    const html = /^\s*<(?:!doctype|html)/i.test(xml);
+    const title = (xml.match(/<title>([^<]*)</i) || [])[1];
+    throw notRetryable(
+      new Error(
+        `ENTSO-E returned no market document${html ? " (an HTML page" : " ("}` +
+          `${title ? `: "${title.trim()}"` : ""}) — platform maintenance?`,
+      ),
+    );
+  }
   const blocks = xml.match(/<TimeSeries\b[\s\S]*?<\/TimeSeries>/g) || [];
   // One TimeSeries per fuel, each carrying the whole window, so the mix has to
   // be accumulated per instant rather than per document — keyed by the point's
@@ -291,14 +444,44 @@ export function parseEntsoe(xml) {
       if (!startM || points.length === 0) continue;
       const step = intervalMinutes(resM ? resM[1].trim().replace(/^PT/i, "") : "60m");
       const start = parseDt(startM[1]);
+      const endM = period.match(/<end>([^<]+)</);
+      // ENTSO-E returns curveType A03, "variable sized blocks": a point holds
+      // until the NEXT position, so a series that changes slowly is published
+      // sparsely. Reading only the positions present would leave nuclear and
+      // lignite at the first instant and nothing after it while solar reports
+      // every quarter hour — and the mix at 21:15 would then be solar alone, a
+      // handful of gCO2 where the truth is a few hundred. Filling forward is a
+      // no-op under A01, where every position is present, so it is done
+      // unconditionally rather than behind a curveType check that would only
+      // be one more thing able to disagree with the document.
+      const parsed = [];
       for (const p of points) {
         const pos = parseInt((p.match(/<position>(\d+)/) || [])[1], 10);
         const qty = parseFloat((p.match(/<quantity>([^<]+)/) || [])[1]);
         if (Number.isNaN(pos) || Number.isNaN(qty)) continue;
-        const ms = start.getTime() + step * (pos - 1) * MS_PER_MINUTE;
-        if (!byInstant.has(ms)) byInstant.set(ms, { step, mix: {} });
-        const slot = byInstant.get(ms);
-        slot.mix[fuel] = (slot.mix[fuel] || 0) + qty;
+        parsed.push({ pos, qty });
+      }
+      parsed.sort((a, b) => a.pos - b.pos);
+      // The Period's own end says how many slots the last point covers. Capped
+      // so a malformed interval cannot make this loop enormous; our own window
+      // is twelve hours, well inside it.
+      const lastSlot = endM
+        ? Math.min(
+            Math.round((parseDt(endM[1]).getTime() - start.getTime()) / (step * MS_PER_MINUTE)),
+            MAX_PERIOD_SLOTS,
+          )
+        : null;
+      for (let i = 0; i < parsed.length; i += 1) {
+        const { pos: from, qty } = parsed[i];
+        let until = i + 1 < parsed.length ? parsed[i + 1].pos - 1 : (lastSlot ?? from);
+        if (lastSlot !== null) until = Math.min(until, lastSlot);
+        until = Math.max(until, from);
+        for (let pos = from; pos <= until; pos += 1) {
+          const ms = start.getTime() + step * (pos - 1) * MS_PER_MINUTE;
+          if (!byInstant.has(ms)) byInstant.set(ms, { step, mix: {} });
+          const slot = byInstant.get(ms);
+          slot.mix[fuel] = (slot.mix[fuel] || 0) + qty;
+        }
       }
     }
   }
@@ -311,7 +494,7 @@ export function parseEntsoe(xml) {
     out.push({ start: iso(new Date(ms)), end: iso(new Date(ms + step * MS_PER_MINUTE)), direct });
   }
   if (out.length === 0) {
-    throw new Error("ENTSO-E document contained no usable generation data");
+    throw noData(new Error("ENTSO-E document contained no usable generation data"));
   }
   // The newest point's own step: a document that changes resolution part-way
   // through describes the present with its last one.
@@ -323,7 +506,7 @@ export function parseEntsoe(xml) {
 export function parseEia(payload) {
   const obj = typeof payload === "string" ? JSON.parse(payload) : payload;
   const rows = obj?.response?.data || [];
-  if (rows.length === 0) throw new Error("EIA response contained no data rows");
+  if (rows.length === 0) throw noData(new Error("EIA response contained no data rows"));
   // fetchEia asks for 200 rows sorted by period; every period in them is a
   // point, not just the newest.
   const byPeriod = new Map();
@@ -360,7 +543,7 @@ export function parseEia(payload) {
 export function parseUk(payload, dayPayload = null) {
   const obj = typeof payload === "string" ? JSON.parse(payload) : payload;
   const rows = obj?.data || [];
-  if (rows.length === 0) throw new Error("NESO response contained no data");
+  if (rows.length === 0) throw noData(new Error("NESO response contained no data"));
   const intensityOf = (row) => row?.intensity?.actual ?? row?.intensity?.forecast;
   // Checked against the newest row specifically, not "any row has a value":
   // v1 fell back to the annual figure when the current period had no intensity,
@@ -417,23 +600,28 @@ export function parseOns(payload) {
 }
 
 // --- OpenNEM / OpenElectricity ------------------------------------------------
-export function parseOpennem(payload) {
+// One entry per production series, each carrying its own clock. The series do
+// not share a start time or a length — rooftop solar in particular runs on its
+// own — so they must be aligned on timestamps. Indexing every series with one
+// shared position reads a different instant from each, and where the offset
+// exceeds the shorter arrays it reads only the longest, yielding a mix of one
+// fuel or none.
+function opennemTracks(payload) {
   const obj = typeof payload === "string" ? JSON.parse(payload) : payload;
-  const series = (obj.data || []).filter(
+  const found = (obj.data || []).filter(
     (s) => s.type === "power" && s.fuel_tech && OPENNEM_FUEL_TO_FUEL[String(s.fuel_tech).toLowerCase()],
   );
-  if (series.length === 0) throw new Error("OpenNEM response had no production series");
-  // The series do not share a start time or a length — rooftop solar in
-  // particular runs on its own clock — so they must be aligned on timestamps.
-  // Indexing every series with one shared position reads a different instant
-  // from each, and where the offset exceeds the shorter arrays it reads only
-  // the longest series, yielding a mix of one fuel (or none).
-  const tracks = series.map((s) => ({
+  if (found.length === 0) throw new Error("OpenNEM response had no production series");
+  return found.map((s) => ({
     fuel: OPENNEM_FUEL_TO_FUEL[String(s.fuel_tech).toLowerCase()],
     start: parseDt(s.history.start).getTime(),
     step: intervalMinutes(s.history.interval || "5m") * MS_PER_MINUTE,
     data: s.history.data,
   }));
+}
+
+export function parseOpennem(payload) {
+  const tracks = opennemTracks(payload);
   // Latest instant every track has a value for. Taking the newest instant of
   // any single track instead would land on one a slower feed has not reached.
   const ends = tracks
@@ -443,7 +631,7 @@ export function parseOpennem(payload) {
       return i >= 0 ? t.start + i * t.step : null;
     })
     .filter((t) => t != null);
-  if (ends.length === 0) throw new Error("OpenNEM series contained no values");
+  if (ends.length === 0) throw noData(new Error("OpenNEM series contained no values"));
   const instant = Math.min(...ends);
   const mix = {};
   for (const t of tracks) {
@@ -454,11 +642,38 @@ export function parseOpennem(payload) {
   }
   const intensity = mixToDirectIntensity(mix);
   if (intensity == null) throw new Error("OpenNEM latest interval had no usable generation");
-  // ponytail: one point per fetch, though the 7d payload holds a full 5-minute
-  // history per fuel. Widening it means re-aligning every track at every
-  // instant, not just the newest — worth doing only if AU history matters
-  // enough to pay for it.
+  // One point per fetch on the live path, though the 7d payload holds a full
+  // 5-minute history per fuel. parseOpennemAll below pays the re-alignment cost
+  // for the backfill, where AU history does matter.
   return hourPoint(new Date(instant), intensity);
+}
+
+// Every instant the payload covers, for a backfill. Same endpoint as the live
+// path — the work is aligning each fuel's own track, since rooftop solar and
+// coal are published on different steps and start at different times.
+export function parseOpennemAll(payload) {
+  const tracks = opennemTracks(payload);
+  if (tracks.length === 0) throw noData(new Error("OpenNEM series contained no values"));
+  // The coarsest step, so every track really has a value at each grid instant
+  // rather than one being interpolated into existence.
+  const step = Math.max(...tracks.map((t) => t.step));
+  const from = Math.max(...tracks.map((t) => t.start));
+  const to = Math.min(...tracks.map((t) => t.start + (t.data.length - 1) * t.step));
+  const points = [];
+  for (let ms = from; ms <= to; ms += step) {
+    const mix = {};
+    for (const t of tracks) {
+      const i = Math.round((ms - t.start) / t.step);
+      const v = i >= 0 && i < t.data.length ? t.data[i] : null;
+      if (v == null) continue;
+      mix[t.fuel] = (mix[t.fuel] || 0) + Number(v);
+    }
+    const direct = mixToDirectIntensity(mix);
+    if (direct == null) continue;
+    points.push({ start: iso(new Date(ms)), end: iso(new Date(ms + step)), direct });
+  }
+  if (points.length === 0) throw new Error("OpenNEM payload had no usable interval");
+  return series(Math.round(step / MS_PER_SECOND), points);
 }
 
 // --- Singapore EMC ------------------------------------------------------------
@@ -517,11 +732,40 @@ export function parseEskomCsv(text) {
   }
   const intensity = mixToDirectIntensity(mix);
   if (intensity == null) throw new Error("Eskom row had no usable generation data");
-  // ponytail: newest row only, though Station_Build_Up.csv carries the whole
-  // month. Returning all of it would rewrite closed history days on every run,
-  // which is exactly the immutability the caching design depends on — a
-  // bounded backfill path is the right place for that, not the live parser.
+  // Newest row only on the live path, though Station_Build_Up.csv carries the
+  // whole month. Returning all of it every run would rewrite closed history
+  // days, which is exactly the immutability the caching design depends on —
+  // `all` is the bounded backfill path this note asked for.
   return hourPoint(new Date(latestMs), intensity);
+}
+
+// Every row of the same document, for a backfill. No new endpoint: this is the
+// file the live path already fetches, read whole instead of read for its tail.
+export function parseEskomCsvAll(text) {
+  const points = [];
+  for (const row of text.split(/\r?\n/).map((l) => l.split(","))) {
+    if (!row || row.length < 2) continue;
+    const head = (row[0] || "").trim();
+    if (head === "" || head === "Date_Time_Hour_Beginning") continue;
+    const cols = row.slice(1);
+    if (cols.every((v) => v.trim() === "")) continue;
+    const d = new Date(`${head.replace(" ", "T")}+02:00`); // SAST, no DST
+    if (Number.isNaN(d.getTime())) continue;
+    const mix = {};
+    for (const [idx, fuel] of Object.entries(ESKOM_INDEX_TO_FUEL)) {
+      const raw = (cols[+idx] || "").trim();
+      if (!raw) continue;
+      const v = parseFloat(raw);
+      if (!Number.isNaN(v)) mix[fuel] = (mix[fuel] || 0) + v;
+    }
+    const intensity = mixToDirectIntensity(mix);
+    if (intensity == null) continue;
+    const [start, end] = hourWindow(d);
+    points.push({ start, end, direct: intensity });
+  }
+  if (points.length === 0) throw new Error("Eskom CSV had no usable rows");
+  points.sort((a, b) => Date.parse(a.start) - Date.parse(b.start));
+  return series(SECONDS_PER_HOUR, points);
 }
 
 // --- IESO (Ontario) -----------------------------------------------------------
@@ -601,12 +845,65 @@ export function parseIeso(xml) {
 }
 
 // --- fetch wrappers -----------------------------------------------------------
-const TIMEOUT_MS = 15_000;
+// The live path wants a short timeout: a run every 20 minutes must not hang on
+// one slow provider. A backfill asks for a week at a time and needs longer, so
+// bin/backfill-history.js raises it — the one caller allowed to, which is why
+// this is a setter rather than an argument threaded through every fetcher.
+let TIMEOUT_MS = 15000;
+
+export function setFetchTimeout(ms) {
+  TIMEOUT_MS = ms;
+}
+
+// Two providers carry their credential in the query string — ENTSO-E's
+// securityToken, EIA's api_key — and the failure below is reported, so the URL
+// reaches a run log. Blank anything that looks like a secret: Actions masks
+// registered secrets, but a local run has nothing doing that.
+export function safeUrl(url) {
+  try {
+    const u = new URL(url);
+    for (const k of [...u.searchParams.keys()]) {
+      if (/token|key|secret|password/i.test(k)) u.searchParams.set(k, "***");
+    }
+    return u.toString();
+  } catch {
+    return String(url).split("?")[0];
+  }
+}
 
 // AbortSignal.timeout guards against a provider hanging the whole run.
 async function get(url, kind = "json") {
   const resp = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
+  if (!resp.ok) {
+    // The body is where providers say WHY. ENTSO-E returns an acknowledgement
+    // with a reason code on plenty of its errors, and discarding it left a wall
+    // of bare "HTTP 503" with nothing to act on. Truncated and flattened: this
+    // goes in a log line, and an HTML error page would otherwise fill the screen.
+    let why = "";
+    let page = false;
+    try {
+      const body = (await resp.text()).replace(/\s+/g, " ").trim();
+      // An HTML body is a page, not a payload: a maintenance notice or an edge
+      // error. Summarised by its title rather than dumped, because 300
+      // characters of a stylesheet tells a reader nothing and buries the other
+      // failures in the run.
+      page = /^\s*<(?:!doctype|html)/i.test(body);
+      const title = (body.match(/<title>([^<]*)</i) || [])[1];
+      if (page) why = ` — HTML page${title ? ` "${title.trim()}"` : ""}, not data: provider maintenance?`;
+      else if (body) why = ` — ${body.slice(0, ERROR_BODY_CHARS)}${body.length > ERROR_BODY_CHARS ? "…" : ""}`;
+    } catch {
+      /* a body that cannot be read is not worth failing over */
+    }
+    const err = new Error(`HTTP ${resp.status} for ${safeUrl(url)}${why}`);
+    // 5xx and 429 are the provider struggling or shedding load, so worth trying
+    // again; a 4xx is the request itself and will not improve. A maintenance
+    // page is neither — the platform is deliberately serving a page, and it will
+    // serve the same one eight seconds later. parseEntsoe already refused to
+    // retry that page when it arrived with a 200; this applies the same rule
+    // when it arrives with a 503.
+    err.retryable = !page && (resp.status >= HTTP_SERVER_ERROR || resp.status === HTTP_TOO_MANY_REQUESTS);
+    throw err;
+  }
   return kind === "text" ? resp.text() : resp.json();
 }
 
@@ -614,11 +911,27 @@ function pad(n) {
   return String(n).padStart(2, "0");
 }
 
-export async function fetchEntsoe(code, token, zone = null) {
+// How far back to ask ENTSO-E for. A75 is published per control area as each
+// TSO submits, so the platform runs anywhere from one to four hours behind
+// real time, and the whole platform occasionally stops publishing for hours.
+// The window has to cover that lag with room to spare, because ENTSO-E answers
+// a window it has no data for with HTTP 400 "No matching data found" — not an
+// empty document — so a window that falls entirely inside the lag is
+// indistinguishable from the provider being gone: the country drops out of the
+// snapshot, /past-hour is deleted, and /current-hour freezes at whatever it
+// last held. That is exactly how DE, AT, IT, NL and PL lost /past-hour on
+// 2026-08-29 while the runs stayed green. Twelve hours is well past the worst
+// lag observed and still a small document at PT15M.
+export const ENTSOE_WINDOW_HOURS = 12;
+
+// `window` is {start, end} as Dates, for backfilling a past range; omitted, the
+// pipeline's own trailing window is used. A75 accepts up to a year per request,
+// so a backfill is a handful of calls per series rather than one per day.
+export async function fetchEntsoe(code, token, zone = null, window = null) {
   const domain = zone ? ZONES[code]?.[zone] : ENTSOE_DOMAIN[code];
   if (!domain) throw new Error(`no ENTSO-E domain for ${code}${zone ? `/${zone}` : ""}`);
-  const end = new Date();
-  const start = new Date(end.getTime() - ENTSOE_LOOKBACK_MS);
+  const end = window ? window.end : new Date();
+  const start = window ? window.start : new Date(end.getTime() - ENTSOE_WINDOW_HOURS * MS_PER_HOUR);
   const fmt = (d) => `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}${pad(d.getUTCHours())}00`;
   const url = new URL("https://web-api.tp.entsoe.eu/api");
   url.search = new URLSearchParams({
@@ -632,17 +945,146 @@ export async function fetchEntsoe(code, token, zone = null) {
   return parseEntsoe(await get(url, "text"));
 }
 
-export async function fetchEia(token, respondent = "US48") {
-  const url = new URL("https://api.eia.gov/v2/electricity/rto/fuel-type-data/data/");
+// --- Elexon BMRS (GB) ---------------------------------------------------------
+// { data: [{ startTime, fuelType, generation }, ...] }, one row per fuel per
+// instant, published every five minutes.
+export function parseElexon(payload) {
+  const rows = payload?.data;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw noData(new Error("Elexon payload had no data rows"));
+  }
+  const byInstant = new Map();
+  for (const r of rows) {
+    // Unmapped is dropped, not folded into `other`: the unmapped rows are the
+    // interconnectors, and an import is not GB generation.
+    const fuel = ELEXON_FUEL_TO_FUEL[String(r?.fuelType || "").toUpperCase()];
+    if (!fuel) continue;
+    const ms = Date.parse(r.startTime);
+    const mw = Number(r.generation);
+    if (!Number.isFinite(ms) || !Number.isFinite(mw) || mw <= 0) continue;
+    if (!byInstant.has(ms)) byInstant.set(ms, {});
+    const mix = byInstant.get(ms);
+    mix[fuel] = (mix[fuel] || 0) + mw;
+  }
+  const instants = [...byInstant.keys()].sort((a, b) => a - b);
+  if (instants.length === 0) {
+    throw notRetryable(new Error("Elexon payload had no recognised generation rows"));
+  }
+  // FUELINST publishes every five minutes; read the cadence off the data rather
+  // than assuming it, so a change of publication rate does not silently mark
+  // every hour incomplete.
+  const stepSec =
+    instants.length > 1
+      ? Math.max(SECONDS_PER_MINUTE, Math.round((instants[1] - instants[0]) / MS_PER_SECOND))
+      : ELEXON_FALLBACK_STEP_SEC;
+  const out = [];
+  for (const ms of instants) {
+    const direct = mixToDirectIntensity(byInstant.get(ms));
+    if (direct == null) continue;
+    out.push({ start: iso(new Date(ms)), end: iso(new Date(ms + stepSec * MS_PER_SECOND)), direct });
+  }
+  if (out.length === 0) throw noData(new Error("Elexon document contained no usable generation data"));
+  return series(stepSec, out);
+}
+
+export async function fetchElexon(window = null) {
+  const now = window ? window.end : new Date();
+  const from = window ? window.start : new Date(now.getTime() - ELEXON_LOOKBACK_HOURS * MS_PER_HOUR);
+  const url = new URL("https://data.elexon.co.uk/bmrs/api/v1/datasets/FUELINST");
   url.search = new URLSearchParams({
+    format: "json",
+    publishDateTimeFrom: iso(from),
+    publishDateTimeTo: iso(now),
+  }).toString();
+  return parseElexon(await get(url));
+}
+
+// --- Energy-Charts (Fraunhofer ISE) -------------------------------------------
+// { unix_seconds: [...], production_types: [{ name, data: [...] }, ...] }, with
+// one value per timestamp per series. The response also carries series that are
+// not generation — load, residual load, cross-border trading, renewable share —
+// which energyChartsFuel() drops rather than folding into `other`.
+export function parseEnergyCharts(payload) {
+  const seconds = payload?.unix_seconds;
+  const types = payload?.production_types;
+  if (!Array.isArray(seconds) || !Array.isArray(types) || seconds.length === 0) {
+    throw notRetryable(new Error("Energy-Charts payload had no unix_seconds/production_types"));
+  }
+  // The feed states its cadence only by the spacing of its own timestamps.
+  const stepSec = seconds.length > 1 ? Math.max(1, seconds[1] - seconds[0]) : SECONDS_PER_HOUR;
+  const mixes = seconds.map(() => ({}));
+  let recognised = 0;
+  for (const t of types) {
+    const fuel = energyChartsFuel(t?.name);
+    if (!fuel) continue;
+    recognised += 1;
+    const data = Array.isArray(t.data) ? t.data : [];
+    for (let i = 0; i < seconds.length && i < data.length; i += 1) {
+      const v = Number(data[i]);
+      if (data[i] == null || !Number.isFinite(v) || v <= 0) continue;
+      mixes[i][fuel] = (mixes[i][fuel] || 0) + v;
+    }
+  }
+  // Nothing matched means the labelling changed under us, not that the grid
+  // stopped generating. Refusing loudly beats publishing a mix built from
+  // whatever happened to be recognisable.
+  if (recognised === 0) {
+    throw notRetryable(new Error("Energy-Charts payload had no recognised generation series"));
+  }
+  const out = [];
+  for (let i = 0; i < seconds.length; i += 1) {
+    const direct = mixToDirectIntensity(mixes[i]);
+    if (direct == null) continue; // an instant present but with nothing usable
+    out.push({
+      start: iso(new Date(seconds[i] * MS_PER_SECOND)),
+      end: iso(new Date((seconds[i] + stepSec) * MS_PER_SECOND)),
+      direct,
+    });
+  }
+  if (out.length === 0) throw noData(new Error("Energy-Charts document contained no usable generation data"));
+  return series(stepSec, out);
+}
+
+export async function fetchEnergyCharts(code, window = null) {
+  // Dates, not timestamps. A full ISO8601 `start` is answered with 404 "no
+  // content available", which looks exactly like a country this feed does not
+  // carry — so the window is expressed as two calendar days and trimmed by the
+  // hourly means afterwards. Yesterday to today is 30-48h depending on where
+  // the feed puts a local midnight; more than the twelve hours wanted, and
+  // small enough not to care.
+  const day = (d) => d.toISOString().slice(0, ISO_DATE_LENGTH);
+  const now = new Date();
+  const url = new URL("https://api.energy-charts.info/public_power");
+  url.search = new URLSearchParams({
+    country: code.toLowerCase(),
+    start: day(window ? window.start : new Date(now.getTime() - ENERGY_CHARTS_LOOKBACK_HOURS * MS_PER_HOUR)),
+    end: day(window ? window.end : now),
+  }).toString();
+  return parseEnergyCharts(await get(url));
+}
+
+export async function fetchEia(token, respondent = "US48", window = null) {
+  const url = new URL("https://api.eia.gov/v2/electricity/rto/fuel-type-data/data/");
+  const params = {
     api_key: token,
     frequency: "hourly",
     "data[0]": "value",
     "facets[respondent][]": respondent,
     "sort[0][column]": "period",
     "sort[0][direction]": "desc",
-    length: "200",
-  }).toString();
+    // Measured: 200 rows is about 13 hours, since EIA gives each fuel type its
+    // own row. The ceiling is ~330 hours, so a backfill chunk of a week fits
+    // with room; a chunk that came back short of `days * 24` minus the feed's
+    // lag would be hitting it.
+    length: window ? "5000" : "200",
+  };
+  if (window) {
+    // Hour granularity, which is what `frequency: hourly` indexes on.
+    const hour = (d) => d.toISOString().slice(0, ISO_HOUR_LENGTH);
+    params.start = hour(window.start);
+    params.end = hour(window.end);
+  }
+  url.search = new URLSearchParams(params).toString();
   return parseEia(await get(url));
 }
 
@@ -659,7 +1101,11 @@ export async function fetchUk() {
 }
 
 export async function fetchOns() {
-  return parseOns(await get("https://integra.ons.org.br/api/energiaagora/Get/"));
+  // ONS moved this feed: integra.ons.org.br/api/energiaagora/Get/ now 302s to
+  // tr.ons.org.br, where the old path is gone — BR had been falling back to its
+  // annual figure since. The document itself is unchanged, same regions and the
+  // same `geracao` keys, so only the address moved.
+  return parseOns(await get("https://tr.ons.org.br/Content/GetBalancoEnergetico/null"));
 }
 
 export async function fetchOpennem(region = "NEM") {
@@ -681,6 +1127,21 @@ export async function fetchIeso() {
   );
 }
 
+// The same documents the live path fetches, read whole. No new endpoint, so the
+// only risk is in the parsing — which the backfill reports loudly, unlike a
+// fallback fetcher that fails into silence.
+export async function fetchEskomAll() {
+  const now = new Date();
+  const url =
+    "https://www.eskom.co.za/dataportal/wp-content/uploads/" +
+    `${now.getUTCFullYear()}/${pad(now.getUTCMonth() + 1)}/Station_Build_Up.csv`;
+  return parseEskomCsvAll(await get(url, "text"));
+}
+
+export async function fetchOpennemAll(region = "NEM") {
+  return parseOpennemAll(await get(`https://data.openelectricity.org.au/v4/stats/au/${region}/power/7d.json`));
+}
+
 export async function fetchEskom() {
   const now = new Date();
   const url =
@@ -694,10 +1155,37 @@ export function providerFor(code) {
   return PROVIDERS[code] || (ENTSOE_DOMAIN[code] ? "ENTSO-E" : null);
 }
 
+// The full chain for a country: primary first, then its fallbacks. A zone is
+// served only by a provider that publishes below national level, so a zone
+// chain is filtered to those — a fallback that only has national figures must
+// not be asked for a bidding zone and quietly answer with the country's.
+export function providersFor(code, zone = null) {
+  const primary = providerFor(code);
+  if (!primary) return [];
+  // A fallback is reachable only while it is declared independent of the
+  // primary. Enforced here rather than left to whoever edits FALLBACK_PROVIDERS,
+  // because a feed that re-publishes the primary is not a fallback at all: it
+  // goes down with it, and configuring one buys nothing but the appearance of
+  // cover. Removing a `FALLBACK_COVERAGE` entry is enough to retire a feed.
+  const chain = [
+    primary,
+    ...(FALLBACK_PROVIDERS[code] || []).filter((p) => FALLBACK_COVERAGE[`${code}:${p}`] === "independent"),
+  ];
+  if (!zone) return chain;
+  return chain.filter((p) => ZONE_CAPABLE.has(p));
+}
+
+// Providers that can answer for a sub-country zone. IESO is Ontario-only and so
+// is reached exclusively through a zone; the rest publish one national figure.
+const ZONE_CAPABLE = new Set(["ENTSO-E", "EIA", "OpenNEM", "IESO"]);
+
 // `zone` selects a sub-country area; null asks for the country as a whole. Only
 // the three zone-capable providers read it — the rest publish one national
 // figure and are never reached with a zone (zonesFor gates that).
-function defaultFetchers(code, env, zone = null) {
+// Exported for bin/verify-providers.js, which calls every feed in a chain rather
+// than stopping at the first that works — the only way to find out whether a
+// configured fallback is real.
+export function defaultFetchers(code, env, zone = null) {
   const ref = zone ? ZONES[code]?.[zone] : null;
   const out = {
     NESO: fetchUk,
@@ -714,10 +1202,70 @@ function defaultFetchers(code, env, zone = null) {
   if (eia) out.EIA = () => fetchEia(eia, ref || "US48");
   const ent = env.ENTSOE_TOKEN || env.ENTSOE_API_KEY;
   if (ent) out["ENTSO-E"] = () => fetchEntsoe(code, ent, zone);
+  // National figures only, and no token. Registered for the country request
+  // alone — providersFor() already filters it out of a zone chain, and this is
+  // the second guard on the same rule: a fallback with only national data must
+  // never answer a bidding-zone request with the country's mix.
+  if (!zone) out["Energy-Charts"] = () => fetchEnergyCharts(code);
+  if (!zone) out.Elexon = fetchElexon;
   return out;
 }
 
+// Feeds that can be asked for an arbitrary past range, for bin/backfill-history.js.
+// Everything else publishes a snapshot of now and cannot be backfilled from —
+// its history only ever accumulates one run at a time.
+export function rangedFetcher(provider, code, env, zone = null) {
+  const ref = zone ? ZONES[code]?.[zone] : null;
+  if (provider === "ENTSO-E") {
+    const token = env.ENTSOE_TOKEN || env.ENTSOE_API_KEY;
+    return token ? (window) => fetchEntsoe(code, token, zone, window) : null;
+  }
+  if (provider === "EIA") {
+    const token = env.EIA_TOKEN || env.EIA_API_KEY;
+    return token ? (window) => fetchEia(token, ref || "US48", window) : null;
+  }
+  if (provider === "Elexon" && !zone) return (window) => fetchElexon(window);
+  // National figures only, so never for a zone.
+  if (provider === "Energy-Charts" && !zone) return (window) => fetchEnergyCharts(code, window);
+  // These two ignore the window: their documents carry a fixed span — a month
+  // of hourly rows for Eskom, seven days at five minutes for OpenNEM — and the
+  // caller keeps whatever days fall in range. Bounded by the feed, not by the
+  // request, and the run reports how many hours actually came back.
+  // `windowed: false` says the window is ignored, so a caller walking several
+  // windows should fetch once rather than pull the same document each time.
+  if (provider === "Eskom" && !zone) return Object.assign(() => fetchEskomAll(), { windowed: false });
+  if (provider === "OpenNEM") {
+    return Object.assign(() => fetchOpennemAll(ref || "NEM"), { windowed: false });
+  }
+  return null;
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Run `fn`, retrying what is worth retrying. Exponential and jittered: the
+// pipeline fires every US balancing authority at EIA at once, so a deterministic
+// backoff would have them all rate-limited together and then retry together, in
+// step. A failure marked `retryable: false` — a 4xx, an ENTSO-E acknowledgement,
+// a maintenance page, an empty payload — is not retried at all: the provider
+// answered, and it will answer the same way a second later. The subset also
+// marked `empty` says the answer was "nothing to publish", which is what lets
+// the backfill tell a series that is waiting on an outage from one that is not.
+//
+// Shared so the live path and the backfill cannot disagree about which failures
+// are worth a second look.
+export async function retrying(fn, { attempts = 3, backoffMs = 1000 } = {}) {
+  let last;
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return await fn();
+    } catch (e) {
+      last = e;
+      if (e.retryable === false) break;
+      if (i < attempts - 1) await sleep(backoffMs * BACKOFF_BASE ** i * (JITTER_MIN + Math.random()));
+    }
+  }
+  throw last;
+}
 
 // Return a provider series { resolution_sec, points, source } or null.
 // `newestReading()` collapses it to the v1 { direct, hour_start, hour_end,
@@ -729,24 +1277,45 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // few seconds to ride out a dropped connection.
 export async function measuredLastHour(
   code,
-  { fetchers = null, env = {}, zone = null, attempts = 3, backoffMs = 1000 } = {},
+  { fetchers = null, env = {}, zone = null, attempts = 3, backoffMs = 1000, onFailure = null } = {},
 ) {
-  const provider = providerFor(code);
-  if (!provider) return null;
+  const chain = providersFor(code, zone);
+  if (chain.length === 0) return null;
   if (zone && !ZONES[code]?.[zone]) return null;
-  const fetch_ = (fetchers || defaultFetchers(code, env, zone))[provider];
-  if (!fetch_) return null;
-  for (let i = 0; i < attempts; i += 1) {
+  const table = fetchers || defaultFetchers(code, env, zone);
+
+  // Each feed in turn, primary first. A fallback is only reached when the one
+  // before it produced nothing at all, so a country stays on one source while
+  // that source is working and its figures do not step between two providers'
+  // idea of the same grid every run.
+  for (const provider of chain) {
+    // Not reported: a provider with no fetcher registered is a configuration
+    // state, not an outage, and it is not always even a fault — IESO answers
+    // for CA/ON and deliberately not for CA. bin/pipeline.js checks the token
+    // variables by name instead, which cannot confuse the two.
+    const fetch_ = table[provider];
+    if (!fetch_) continue;
+    let last = null;
     try {
-      const s = await fetch_();
-      if (!s?.points?.length) throw new Error("empty series");
+      const s = await retrying(
+        async () => {
+          const r = await fetch_();
+          if (!r?.points?.length) throw new Error("empty series");
+          return r;
+        },
+        { attempts, backoffMs },
+      );
       return { ...s, source: provider };
-    } catch {
-      // Exponential (1s, 2s), jittered: the pipeline fires every US balancing
-      // authority at EIA at once, so a deterministic backoff would have them
-      // all rate-limited together and then retry together, in step.
-      if (i < attempts - 1) await sleep(backoffMs * BACKOFF_BASE ** i * (JITTER_MIN + Math.random()));
+    } catch (e) {
+      last = e;
     }
+    // Reported even when a fallback goes on to succeed: a primary that has
+    // stopped answering is worth knowing about while the fallback is carrying
+    // the country, not only once both are gone. Reported rather than swallowed
+    // at all because a provider going dark used to leave a green run, an
+    // unchanged commit and no line anywhere saying why 30 countries stopped
+    // being measured.
+    if (onFailure) onFailure({ code, zone, provider, error: last ? last.message : "unknown" });
   }
-  return null; // every attempt failed -> annual fallback, or no zone reading
+  return null; // every feed failed -> annual fallback, or no zone reading
 }

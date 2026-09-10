@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Carbon Intensity API">
+  <title>Carbon Intensity API</title>
+  <!-- A disc rather than the hexagon it replaced: green + hexagon is Node.js's
+       territory, and read as a generic dev-tool badge before it read as carbon. -->
+  <circle cx="16" cy="16" r="15" fill="#1a7f4b" />
+  <!-- Bolt knocked out, so the mark is a solid shape at 16px and needs no
+       theme variant — it holds against light and dark browser chrome alike.
+       A bolt keeps the subject the grid measurement: it stays honest whether
+       the reading is 57 or 896, where a leaf would claim a verdict. -->
+  <path fill="#ffffff" d="M18.5 6 11 18h4.5l-2 8L21 14h-4.5z" />
+</svg>
