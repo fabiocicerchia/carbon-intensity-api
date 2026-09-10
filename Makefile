@@ -9,7 +9,7 @@ PORT ?= 8000
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup install build run test lint format analyze sync
+.PHONY: help setup install build run test lint format analyze sync verify
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -27,15 +27,17 @@ run: ## Serve data/ locally on PORT (default 8000)
 test: ## Run the tests (node:test)
 	npm test
 
-lint: ## Lint and check formatting, the way code-quality.yml does
+lint: ## Lint and check formatting, at the pinned biome version
 	npx --yes @biomejs/biome@$(BIOME_VERSION) ci --files-ignore-unknown=true --no-errors-on-unmatched .
 
-format: ## Rewrite the tree with biome, at the version the gate checks
+format: ## Rewrite the tree with biome, at the same pinned version
 	npx --yes @biomejs/biome@$(BIOME_VERSION) format --write .
 
 sync: ## Build with live providers and push data/ to the bucket
 	./sync.sh
 
+verify: ## Check every provider still answers as the pipeline expects
+	npm run verify
 
 # --- Declared no-ops (FC-GEN-058) ---
 # These exit 0 and say why. They are listed under "Not applicable" in the README.

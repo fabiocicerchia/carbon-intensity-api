@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API reference — Carbon Intensity API</title>
+<meta name="description" content="Reference for the v2 Carbon Intensity API, rendered from its OpenAPI document.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+  /* Rendered here rather than by Swagger UI or Redoc: every route is an
+     unauthenticated GET with no query string and no request body, so the
+     interactive half of those tools has nothing to drive, and vendoring ~500 KB
+     of minified JS into a repo with zero dependencies — serving a bucket whose
+     largest object is 246 KB — would make the docs viewer the biggest thing on
+     the site. Light only and dark code blocks, matching index.html. */
+  :root {
+    --bg: #ffffff; --fg: #191d1a; --muted: #55655c; --card: #f4f8f6;
+    --border: #e0e8e3; --accent: #1a7f4b; --accent-soft: #e8f3ec;
+    --code-bg: #0d1117; --code-fg: #e6edf3;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 500 16px/1.6 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+      Roboto, "Noto Sans", "Liberation Sans", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 900px; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  a { color: var(--accent); }
+  h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 .5rem; }
+  h2 {
+    font-size: 1.1rem; margin: 2.5rem 0 .75rem; padding-bottom: .35rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .lede { color: var(--muted); margin: 0 0 1.5rem; }
+  .lede p { margin: 0 0 .75rem; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre {
+    background: var(--code-bg); color: var(--code-fg); padding: .85rem 1rem;
+    border-radius: 8px; overflow-x: auto; font-size: .85rem; line-height: 1.5;
+  }
+  :not(pre) > code {
+    background: var(--accent-soft); color: var(--accent);
+    padding: .1em .35em; border-radius: 4px; font-size: .9em;
+  }
+  .op {
+    border: 1px solid var(--border); border-radius: 10px;
+    margin: 0 0 .75rem; background: var(--card); overflow: hidden;
+  }
+  .op > summary {
+    cursor: pointer; padding: .8rem 1rem; display: flex; gap: .6rem;
+    align-items: baseline; flex-wrap: wrap; list-style: none;
+  }
+  .op > summary::-webkit-details-marker { display: none; }
+  .op > summary::before { content: "▸"; color: var(--muted); }
+  .op[open] > summary::before { content: "▾"; }
+  .verb {
+    font: 700 .7rem/1 ui-monospace, monospace; letter-spacing: .05em;
+    background: var(--accent); color: #fff; padding: .3rem .45rem; border-radius: 4px;
+  }
+  .path { font-family: ui-monospace, monospace; font-size: .95rem; font-weight: 600; }
+  .path .var { color: var(--accent); }
+  .summary { color: var(--muted); font-size: .9rem; }
+  .body { padding: 0 1rem 1rem; border-top: 1px solid var(--border); }
+  .body > p:first-child { margin-top: .9rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; margin: .5rem 0 1rem; }
+  th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  td:first-child { font-family: ui-monospace, monospace; white-space: nowrap; }
+  .type { color: var(--muted); font-size: .85em; }
+  .status { font-family: ui-monospace, monospace; font-weight: 700; }
+  .status-2 { color: var(--accent); }
+  .status-4 { color: #b4551d; }
+  .enum-toggle { cursor: pointer; color: var(--accent); font-size: .85rem; }
+  .enum-list { font-size: .8rem; color: var(--muted); word-spacing: .3rem; margin-top: .4rem; }
+  footer { margin-top: 3rem; color: var(--muted); font-size: .85rem; }
+  #err { padding: 1rem; border: 1px solid #b4551d; border-radius: 8px; color: #b4551d; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">API reference</h1>
+  <div class="lede" id="lede"></div>
+  <p><a href="/">← Overview</a> · <a href="/v2/openapi.json">openapi.json</a></p>
+  <div id="out"></div>
+  <footer id="foot"></footer>
+</main>
+
+<script>
+const el = (tag, props = {}, kids = []) => {
+  const n = Object.assign(document.createElement(tag), props);
+  for (const k of [].concat(kids)) if (k != null) n.append(k);
+  return n;
+};
+
+// The spec uses $ref only for components it also defines, so a one-level
+// resolve is enough — no cycles to guard against.
+const deref = (spec, node) => {
+  if (!node?.$ref) return node;
+  return node.$ref.replace(/^#\//, "").split("/").reduce((o, k) => o[k], spec);
+};
+
+// Markdown here is only ever `code`, **bold** and paragraphs, so a full parser
+// would be more code than the thing it renders.
+function richText(text) {
+  const frag = document.createDocumentFragment();
+  for (const para of String(text).split("\n\n")) {
+    const p = el("p");
+    const parts = para.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
+    for (const part of parts) {
+      if (part.startsWith("`") && part.endsWith("`")) p.append(el("code", { textContent: part.slice(1, -1) }));
+      else if (part.startsWith("**") && part.endsWith("**")) p.append(el("strong", { textContent: part.slice(2, -2) }));
+      else if (part) p.append(part);
+    }
+    frag.append(p);
+  }
+  return frag;
+}
+
+// Enum lists past this length are collapsed behind a toggle rather than
+// printed inline.
+const ENUM_INLINE_MAX = 3;
+const MS_PER_DAY = 864e5;
+const ISO_DATE_LENGTH = 10;
+
+function typeOf(schema) {
+  if (!schema) return "";
+  if (schema.type === "array") return `array of ${schema.items?.type || "object"}`;
+  if (schema.enum && schema.enum.length <= ENUM_INLINE_MAX) return schema.enum.map((v) => JSON.stringify(v)).join(" | ");
+  return schema.type || "object";
+}
+
+function propTable(spec, schema) {
+  const props = deref(spec, schema)?.properties;
+  if (!props) return null;
+  const rows = Object.entries(props).map(([name, p]) =>
+    el("tr", {}, [
+      el("td", { textContent: name }),
+      el("td", {}, [el("span", { className: "type", textContent: typeOf(p) })]),
+      el("td", {}, p.description ? richText(p.description) : ""),
+    ]));
+  return el("table", {}, [
+    el("thead", {}, el("tr", {}, [
+      el("th", { textContent: "field" }), el("th", { textContent: "type" }), el("th", { textContent: "" }),
+    ])),
+    el("tbody", {}, rows),
+  ]);
+}
+
+function paramRows(spec, params = []) {
+  return params.map((raw) => {
+    const p = deref(spec, raw);
+    const enumVals = p.schema?.enum;
+    const cell = el("td", {}, p.description ? richText(p.description) : "");
+    if (enumVals && enumVals.length > ENUM_INLINE_MAX) {
+      const list = el("div", { className: "enum-list", hidden: true, textContent: enumVals.join(" ") });
+      const btn = el("span", { className: "enum-toggle", textContent: `show all ${enumVals.length} values` });
+      btn.onclick = () => {
+        list.hidden = !list.hidden;
+        btn.textContent = list.hidden ? `show all ${enumVals.length} values` : "hide";
+      };
+      cell.append(btn, list);
+    }
+    return el("tr", {}, [
+      el("td", { textContent: p.name }),
+      el("td", {}, [el("span", { className: "type", textContent: typeOf(p.schema) })]),
+      cell,
+    ]);
+  });
+}
+
+function renderPath(path) {
+  const span = el("span", { className: "path" });
+  for (const seg of path.split("/")) {
+    if (!seg) continue;
+    span.append("/");
+    if (seg.startsWith("{")) span.append(el("span", { className: "var", textContent: seg }));
+    else span.append(seg);
+  }
+  return span;
+}
+
+// A copyable example, with the path variables filled in so it runs as-is.
+function curlFor(server, path) {
+  const example = path
+    .replace("{code}", "IT").replace("{zone}", "SICI")
+    .replace("{date}", new Date(Date.now() - MS_PER_DAY).toISOString().slice(0, ISO_DATE_LENGTH));
+  return `curl -s ${server}${example}`;
+}
+
+function operation(spec, path, method, opDef, server) {
+  const det = el("details", { className: "op" });
+  det.append(el("summary", {}, [
+    el("span", { className: "verb", textContent: method.toUpperCase() }),
+    renderPath(path),
+    el("span", { className: "summary", textContent: opDef.summary || "" }),
+  ]));
+
+  const body = el("div", { className: "body" });
+  if (opDef.description) body.append(richText(opDef.description));
+  body.append(el("pre", { textContent: curlFor(server, path) }));
+
+  const params = opDef.parameters || [];
+  if (params.length) {
+    body.append(el("h3", { textContent: "Parameters", style: "font-size:.95rem;margin:1rem 0 .25rem" }));
+    body.append(el("table", {}, [
+      el("thead", {}, el("tr", {}, [
+        el("th", { textContent: "name" }), el("th", { textContent: "type" }), el("th", { textContent: "" }),
+      ])),
+      el("tbody", {}, paramRows(spec, params)),
+    ]));
+  }
+
+  body.append(el("h3", { textContent: "Responses", style: "font-size:.95rem;margin:1rem 0 .25rem" }));
+  for (const [status, raw] of Object.entries(opDef.responses || {})) {
+    const res = deref(spec, raw);
+    body.append(el("p", { style: "margin:.6rem 0 .2rem" }, [
+      el("span", { className: `status status-${status[0]}`, textContent: status }),
+      "  ",
+      el("span", { className: "summary", textContent: res.description?.split(".")[0] || "" }),
+    ]));
+    if (res.description) body.append(richText(res.description));
+    const schema = res.content?.["application/json"]?.schema;
+    if (schema) {
+      const table = propTable(spec, schema);
+      if (table) body.append(table);
+    }
+  }
+  det.append(body);
+  return det;
+}
+
+async function main() {
+  const out = document.getElementById("out");
+  let spec;
+  try {
+    const res = await fetch("/v2/openapi.json", { headers: { accept: "application/json" } });
+    if (!res.ok) throw new Error(`openapi.json returned ${res.status}`);
+    spec = await res.json();
+  } catch (e) {
+    out.append(el("div", { id: "err", textContent: `Could not load the spec: ${e.message}` }));
+    return;
+  }
+
+  document.getElementById("title").textContent = `${spec.info.title} — v${spec.info.version}`;
+  document.getElementById("lede").append(richText(spec.info.description || ""));
+  const server = spec.servers?.[0]?.url || "";
+
+  const byTag = new Map((spec.tags || []).map((t) => [t.name, { def: t, ops: [] }]));
+  for (const [path, methods] of Object.entries(spec.paths)) {
+    for (const [method, opDef] of Object.entries(methods)) {
+      for (const tag of opDef.tags?.length ? opDef.tags : ["other"]) {
+        if (!byTag.has(tag)) byTag.set(tag, { def: { name: tag }, ops: [] });
+        byTag.get(tag).ops.push([path, method, opDef]);
+      }
+    }
+  }
+
+  for (const { def, ops } of byTag.values()) {
+    if (!ops.length) continue;
+    out.append(el("h2", { textContent: def.name }));
+    if (def.description) out.append(el("p", { className: "summary", textContent: def.description }));
+    for (const [path, method, opDef] of ops) out.append(operation(spec, path, method, opDef, server));
+  }
+
+  document.getElementById("foot").append(richText(
+    `Rendered from \`/v2/openapi.json\`, which is generated by the pipeline from the same `
+    + `country and zone data it serves. ${spec.info.license?.name || ""}.`,
+  ));
+}
+main();
+</script>
+</body>
+</html>

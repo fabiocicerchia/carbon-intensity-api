@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { energyChartsFuel } from "../src/factors.js";
 import * as live from "../src/live.js";
 
 // Every parser now returns a series; v1 is defined as its newest point. Reading
@@ -45,6 +46,195 @@ const ENTSOE_XML = `<?xml version="1.0"?>
       <Point><position>2</position><quantity>9999</quantity></Point></Period>
   </TimeSeries>
 </GL_MarketDocument>`;
+
+// The real DE reply of 2026-08-30T09:45Z, trimmed to the fields the parser
+// reads: curveType A03, one point per fuel, and the pumped-storage consumption
+// series last. What ENTSO-E published as it came back from maintenance.
+const A03_SERIES = (mRID, psr, qty, dir = "in") => `
+  <TimeSeries><mRID>${mRID}</mRID><businessType>A01</businessType>
+    <${dir}BiddingZone_Domain.mRID codingScheme="A01">10Y1001A1001A83F</${dir}BiddingZone_Domain.mRID>
+    <curveType>A03</curveType><MktPSRType><psrType>${psr}</psrType></MktPSRType>
+    <Period><timeInterval><start>2026-08-29T21:00Z</start><end>2026-08-29T21:15Z</end></timeInterval>
+      <resolution>PT15M</resolution>
+      <Point><position>1</position><quantity>${qty}</quantity></Point></Period>
+  </TimeSeries>`;
+
+const ENTSOE_A03 = `<?xml version="1.0" encoding="utf-8"?>
+<GL_MarketDocument xmlns="urn:x"><type>A75</type>
+${[
+  ["1", "B01", 3975.30173],
+  ["2", "B02", 5383.24911],
+  ["3", "B03", 492.08296],
+  ["4", "B04", 2226.29828],
+  ["5", "B05", 1914.74533],
+  ["6", "B06", 385.2039],
+  ["7", "B09", 19.24709],
+  ["8", "B10", 3669.4013],
+  ["9", "B11", 1136.4492],
+  ["10", "B12", 51.8561],
+  ["11", "B15", 70.451],
+  ["12", "B16", 0],
+  ["13", "B17", 893.5191],
+  ["14", "B18", 2840.844],
+  ["15", "B19", 20817.14803],
+  ["16", "B20", 137.55243],
+]
+  .map(([m, psr, q]) => A03_SERIES(m, psr, q))
+  .join("")}
+${A03_SERIES("17", "B10", 13.0604, "out")}
+</GL_MarketDocument>`;
+
+test("parseEntsoe: the real A03 reply parses to one quarter-hour of the true mix", () => {
+  const s = live.parseEntsoe(ENTSOE_A03);
+  assert.equal(s.resolution_sec, 900);
+  assert.equal(s.points.length, 1);
+  assert.equal(s.points[0].start, "2026-08-29T21:00:00Z");
+  assert.equal(s.points[0].end, "2026-08-29T21:15:00Z");
+
+  // Computed from the document rather than asserted as a magic number: lignite
+  // and hard coal against 23 GW of wind. The band is what matters — a mix this
+  // wind-heavy but still burning lignite cannot be near zero or near coal.
+  const fossil =
+    5383.24911 * 1150 +
+    1914.74533 * 900 +
+    2226.29828 * 470 +
+    492.08296 * 700 +
+    385.2039 * 720 +
+    893.5191 * 300 +
+    19.24709 * 40;
+  const total =
+    3975.30173 +
+    5383.24911 +
+    492.08296 +
+    2226.29828 +
+    1914.74533 +
+    385.2039 +
+    19.24709 +
+    3669.4013 +
+    1136.4492 +
+    51.8561 +
+    70.451 +
+    893.5191 +
+    2840.844 +
+    20817.14803 +
+    137.55243;
+  approx(s.points[0].direct, fossil / total);
+
+  // The pumped-storage CONSUMPTION series must not have been counted as hydro
+  // generation: it would have moved the denominator by 13 MW.
+  assert.ok(s.points[0].direct > 200 && s.points[0].direct < 300);
+});
+
+test("parseEntsoe: a sparse A03 series holds until its next position", () => {
+  // Nuclear reported once, solar every quarter hour — which is exactly what
+  // "variable sized blocks" means. Reading only the positions present would
+  // leave positions 2-4 as solar alone, near 0 gCO2 instead of near nuclear's
+  // share of a mostly-nuclear grid.
+  const xml = `<?xml version="1.0"?>
+<GL_MarketDocument xmlns="urn:x">
+  <TimeSeries><inBiddingZone_Domain.mRID>10Y</inBiddingZone_Domain.mRID>
+    <curveType>A03</curveType><MktPSRType><psrType>B05</psrType></MktPSRType>
+    <Period><timeInterval><start>2026-08-29T21:00Z</start><end>2026-08-29T22:00Z</end></timeInterval>
+      <resolution>PT15M</resolution>
+      <Point><position>1</position><quantity>1000</quantity></Point></Period>
+  </TimeSeries>
+  <TimeSeries><inBiddingZone_Domain.mRID>10Y</inBiddingZone_Domain.mRID>
+    <curveType>A03</curveType><MktPSRType><psrType>B16</psrType></MktPSRType>
+    <Period><timeInterval><start>2026-08-29T21:00Z</start><end>2026-08-29T22:00Z</end></timeInterval>
+      <resolution>PT15M</resolution>
+      <Point><position>1</position><quantity>1000</quantity></Point>
+      <Point><position>2</position><quantity>1000</quantity></Point>
+      <Point><position>3</position><quantity>1000</quantity></Point>
+      <Point><position>4</position><quantity>1000</quantity></Point></Period>
+  </TimeSeries>
+</GL_MarketDocument>`;
+  const s = live.parseEntsoe(xml);
+  assert.equal(s.points.length, 4);
+  // Hard coal 1000 + solar 1000 at every position: 900 * 1000 / 2000 = 450.
+  for (const p of s.points) approx(p.direct, 450);
+});
+
+test("measuredLastHour: a refusal is not retried, a dropped connection is", async () => {
+  const ack =
+    '<?xml version="1.0"?><Acknowledgement_MarketDocument><Reason>' +
+    "<code>999</code><text>No matching data found</text></Reason></Acknowledgement_MarketDocument>";
+  let calls = 0;
+  // The fetcher is the real parser, so the test exercises the flag the parser
+  // actually sets rather than a stand-in for it.
+  const refuse = async () => {
+    calls += 1;
+    return live.parseEntsoe(ack);
+  };
+  await live.measuredLastHour("FR", { attempts: 3, backoffMs: 1, fetchers: { "ENTSO-E": refuse } });
+  assert.equal(calls, 1, "the platform answered; asking again changes nothing");
+
+  calls = 0;
+  const flaky = async () => {
+    calls += 1;
+    throw new Error("socket hang up");
+  };
+  await live.measuredLastHour("FR", { attempts: 3, backoffMs: 1, fetchers: { "ENTSO-E": flaky } });
+  assert.equal(calls, 3);
+});
+
+test("an HTML error body is summarised, and not retried", async () => {
+  // ENTSO-E's maintenance page arrived with a 200 in August and with a 503 in
+  // September. parseEntsoe caught the first; get() has to catch the second, or
+  // 300 characters of stylesheet lands in the log for every failed request and
+  // the run retries a page that will be identical eight seconds later.
+  const page =
+    '<!doctype html><html lang="en"><head><title>Transparency Platform</title>' +
+    "<style>:root{--header-height:70px;--page-bg:linear-gradient(to right,rgb(142,196,182));}</style>" +
+    "</head><body><div>Service Temporarily Unavailable</div></body></html>";
+  const real = globalThis.fetch;
+  globalThis.fetch = async () => new Response(page, { status: 503 });
+  try {
+    await live.fetchEnergyCharts("de");
+    assert.fail("should have thrown");
+  } catch (e) {
+    assert.match(e.message, /HTML page "Transparency Platform", not data: provider maintenance\?/);
+    assert.equal(e.message.includes("--header-height"), false, "no stylesheet in the log");
+    assert.equal(e.retryable, false, "the platform will serve the same page again");
+  } finally {
+    globalThis.fetch = real;
+  }
+});
+
+test("a non-HTML error body is kept, since that is where the reason lives", async () => {
+  const real = globalThis.fetch;
+  globalThis.fetch = async () => new Response("Rate limit exceeded: 400 requests per minute", { status: 429 });
+  try {
+    await live.fetchEnergyCharts("de");
+    assert.fail("should have thrown");
+  } catch (e) {
+    assert.match(e.message, /Rate limit exceeded/);
+    assert.equal(e.retryable, true);
+  } finally {
+    globalThis.fetch = real;
+  }
+});
+
+test("parseEntsoe: a refusal and a maintenance page each say so", () => {
+  // The platform is up and telling us it holds nothing for the window. This is
+  // the reply that took a day to find by hand; it belongs in the run log.
+  const ack = `<?xml version="1.0"?>
+<Acknowledgement_MarketDocument xmlns="urn:x">
+  <Reason><code>999</code><text>No matching data found for Data item AGGREGATED_GENERATION_PER_TYPE_R3 [16.1.B&amp;C] (10Y1001A1001A83F) and interval 2026-08-29T21:00:00Z/2026-08-30T09:00:00Z.</text></Reason>
+</Acknowledgement_MarketDocument>`;
+  assert.throws(() => live.parseEntsoe(ack), /acknowledgement 999: No matching data found/);
+
+  // The platform is down. Its maintenance page is HTML and is not always served
+  // with a 5xx, so it can reach the parser looking like a successful fetch.
+  const page = `<!doctype html>
+<html lang="en"><head><title>Transparency Platform</title></head>
+<body><div class="main-heading">Service Temporarily Unavailable</div></body></html>`;
+  assert.throws(() => live.parseEntsoe(page), /no market document \(an HTML page: "Transparency Platform"\)/);
+
+  // A real document with nothing usable in it keeps the old message: that one
+  // is about the data, not about reaching the provider.
+  const empty = `<?xml version="1.0"?><GL_MarketDocument xmlns="urn:x"></GL_MarketDocument>`;
+  assert.throws(() => live.parseEntsoe(empty), /contained no usable generation data/);
+});
 
 test("parseEntsoe: latest interval, load series ignored", () => {
   const [hs, he, direct] = v1(live.parseEntsoe(ENTSOE_XML));
@@ -381,6 +571,288 @@ test("parseEskomCsv: latest row + index mapping", () => {
 });
 
 // --- orchestration ---
+// The fuel rows Elexon's FUELINST returned live on 2026-08-30, one instant's
+// worth. The INT* rows are interconnector flows, not GB generation, and two of
+// them are negative exports.
+const FUELINST_ROWS = [
+  ["BIOMASS", 3213],
+  ["CCGT", 1912],
+  ["COAL", 0],
+  ["INTELEC", 959],
+  ["INTEW", -531],
+  ["INTFR", 1963],
+  ["INTGRNL", -513],
+  ["INTIFA2", 991],
+  ["INTIRL", -452],
+  ["INTNED", 1039],
+  ["INTNEM", 852],
+  ["INTNSL", 0],
+  ["NPSHYD", 186],
+  ["NUCLEAR", 4950],
+  ["OCGT", 50],
+  ["OIL", 0],
+  ["OTHER", 684],
+  ["PS", 834],
+  ["WIND", 1952],
+];
+
+test("parseElexon: interconnectors are not generation", () => {
+  const at = (t) =>
+    FUELINST_ROWS.map(([fuelType, generation]) => ({
+      startTime: t,
+      fuelType,
+      generation,
+    }));
+  const s = live.parseElexon({ data: [...at("2026-08-30T10:45:00Z"), ...at("2026-08-30T10:50:00Z")] });
+
+  assert.equal(s.resolution_sec, 300); // read off the five-minute spacing
+  assert.equal(s.points.length, 2);
+
+  // Only the domestic rows count. Imports carry their own grids' intensity and
+  // the exports are negative, so folding INT* in would corrupt both the
+  // numerator and the denominator.
+  const gen = {
+    biomass: 3213,
+    gas: 1912 + 50,
+    hard_coal: 0,
+    hydro: 186 + 834,
+    nuclear: 4950,
+    oil: 0,
+    other: 684,
+    wind: 1952,
+  };
+  const total = Object.values(gen).reduce((a, b) => a + b, 0);
+  const weighted = 1962 * 470 + 684 * 0; // gas is the only emitter left alight
+  approx(s.points[0].direct, weighted / total);
+
+  // Sanity against the live reading this fixture was taken from: a GB grid on
+  // nuclear and wind with one CCGT sits in the tens, not the hundreds.
+  assert.ok(s.points[0].direct > 30 && s.points[0].direct < 120, "plausible GB figure");
+});
+
+test("parseElexon: a payload of nothing but interconnectors is refused", () => {
+  assert.throws(
+    () => live.parseElexon({ data: [{ startTime: "2026-08-30T10:45:00Z", fuelType: "INTFR", generation: 1963 }] }),
+    /no recognised generation rows/,
+  );
+  assert.throws(() => live.parseElexon({ data: [] }), /no data rows/);
+});
+
+// Every series name the live DE feed returned on 2026-08-30, in its own order.
+// Pinned because the mapping is matched on prose the feed is free to reword, and
+// a silent reclassification here moves a whole country's figures.
+const ENERGY_CHARTS_NAMES = [
+  "Hydro pumped storage consumption",
+  "Cross border electricity trading",
+  "Hydro Run-of-River",
+  "Biomass",
+  "Fossil brown coal / lignite",
+  "Fossil hard coal",
+  "Fossil oil",
+  "Fossil coal-derived gas",
+  "Fossil gas",
+  "Geothermal",
+  "Hydro water reservoir",
+  "Hydro pumped storage",
+  "Others",
+  "Waste",
+  "Wind offshore",
+  "Wind onshore",
+  "Solar",
+  "Load",
+  "Residual load",
+  "Renewable share of load",
+  "Renewable share of generation",
+];
+
+test("energyChartsFuel: every live series is classified, and the traps are dropped", () => {
+  const got = Object.fromEntries(ENERGY_CHARTS_NAMES.map((n) => [n, energyChartsFuel(n)]));
+
+  // Load, residual load, trading, the share percentages and pumped-storage
+  // demand are not generation. Counting "Load" would put demand in the
+  // denominator and roughly halve the intensity.
+  for (const n of [
+    "Load",
+    "Residual load",
+    "Renewable share of load",
+    "Renewable share of generation",
+    "Cross border electricity trading",
+    "Hydro pumped storage consumption",
+  ]) {
+    assert.equal(got[n], null, n);
+  }
+
+  // Coal-derived gas is ENTSO-E's B03 and must not be read as hard coal: 700
+  // against 900, on a series that runs to hundreds of MW.
+  assert.equal(got["Fossil coal-derived gas"], "other_fossil");
+  assert.equal(got["Fossil hard coal"], "hard_coal");
+  assert.equal(got["Fossil brown coal / lignite"], "lignite");
+  assert.equal(got["Fossil gas"], "gas");
+  // "Others" is this feed's B20 — mapped, not dropped, so it lands in the
+  // denominator exactly as it does on the primary.
+  assert.equal(got.Others, "other");
+  assert.equal(got["Hydro pumped storage"], "hydro");
+  assert.equal(got["Wind offshore"], "wind");
+
+  // Nothing in the live payload may go unclassified without being a known trap.
+  const unmapped = ENERGY_CHARTS_NAMES.filter((n) => got[n] === null);
+  assert.equal(unmapped.length, 6, `unexpected unmapped series: ${unmapped}`);
+});
+
+test("parseEnergyCharts: fuels are summed per instant, non-generation dropped", () => {
+  const s = live.parseEnergyCharts({
+    unix_seconds: [1756500000, 1756500900],
+    production_types: [
+      { name: "Fossil hard coal", data: [1000, 1000] },
+      { name: "Solar", data: [1000, 0] },
+      { name: "Load", data: [50000, 50000] },
+      { name: "Residual load", data: [40000, 40000] },
+      { name: "Cross border electricity trading", data: [-2000, -2000] },
+      { name: "Renewable share of generation", data: [55, 55] },
+      { name: "Hydro pumped storage consumption", data: [900, 900] },
+    ],
+  });
+  assert.equal(s.resolution_sec, 900); // read off the timestamp spacing
+  assert.equal(s.points.length, 2);
+  approx(s.points[0].direct, (900 * 1000) / 2000); // coal + solar
+  approx(s.points[1].direct, 900); // solar zero, coal alone
+});
+
+test("parseEnergyCharts: a payload it cannot read is refused, not guessed at", () => {
+  // Relabelled series would otherwise yield a mix built from whatever happened
+  // to still be recognisable, which is worse than no reading.
+  assert.throws(
+    () => live.parseEnergyCharts({ unix_seconds: [1], production_types: [{ name: "Load", data: [1] }] }),
+    /no recognised generation series/,
+  );
+  assert.throws(() => live.parseEnergyCharts({}), /no unix_seconds/);
+});
+
+test("measuredLastHour: a fallback carries the country when the primary fails", async () => {
+  const seen = [];
+  const out = await live.measuredLastHour("DE", {
+    attempts: 1,
+    onFailure: (f) => seen.push(f.provider),
+    fetchers: {
+      "ENTSO-E": async () => {
+        throw new Error("HTTP 503");
+      },
+      "Energy-Charts": async () => hourly(120),
+    },
+  });
+  assert.equal(out.source, "Energy-Charts", "the document must name the feed that replied");
+  assert.equal(live.newestReading(out).direct, 120);
+  // The primary's failure is still reported: it is worth knowing the main feed
+  // is down while the fallback is carrying the country, not only once both are.
+  assert.deepEqual(seen, ["ENTSO-E"]);
+});
+
+test("providersFor: fallbacks are national, so a zone chain drops them", () => {
+  assert.deepEqual(live.providersFor("DE"), ["ENTSO-E", "Energy-Charts"]);
+  // Sicily must not be answered with Italy's national mix.
+  assert.deepEqual(live.providersFor("IT", "SICI"), ["ENTSO-E"]);
+  assert.deepEqual(live.providersFor("GB"), ["NESO", "Elexon"]);
+  assert.deepEqual(live.providersFor("AF"), []);
+});
+
+test("a fallback that is not declared independent cannot be reached", () => {
+  // The rule is structural, not a convention: providersFor filters the chain by
+  // FALLBACK_COVERAGE, so a feed that re-publishes the primary is inert even if
+  // someone lists it. A feed that goes down with the primary is not a fallback.
+  assert.deepEqual(live.providersFor("DE"), ["ENTSO-E", "Energy-Charts"]);
+  assert.deepEqual(live.providersFor("CH"), ["ENTSO-E", "Energy-Charts"]);
+  assert.deepEqual(live.providersFor("GB"), ["NESO", "Elexon"]);
+  assert.equal(live.redundancyFor("DE"), "independent");
+  assert.equal(live.redundancyFor("GB"), "independent");
+
+  // Energy-Charts carries these too, and was configured for them until it was
+  // measured re-publishing ENTSO-E. Not listed, and would be inert if it were.
+  for (const c of ["IT", "FR", "PL", "AT", "ES"]) {
+    assert.deepEqual(live.providersFor(c), ["ENTSO-E"], c);
+    assert.equal(live.redundancyFor(c), "none", c);
+  }
+
+  assert.equal(live.redundancyFor("US"), "none"); // single feed
+  assert.equal(live.redundancyFor("AF"), "none"); // no feed at all
+  // National fallbacks are dropped from a zone chain, so no zone has one.
+  assert.equal(live.redundancyFor("IT", "SICI"), "none");
+  assert.equal(live.redundancyFor("DE", null), "independent");
+});
+
+test("parseEskomCsvAll returns every row, not just the newest", () => {
+  // Same document the live path reads; the CSV carries a month of hourly rows.
+  const csv =
+    "Date_Time_Hour_Beginning," +
+    Array.from({ length: 20 }, (_, i) => `c${i}`).join(",") +
+    "\n2026-08-30 00:00:00," +
+    Array.from({ length: 20 }, () => "1000").join(",") +
+    "\n2026-08-30 01:00:00," +
+    Array.from({ length: 20 }, () => "1000").join(",") +
+    "\n2026-08-30 02:00:00," +
+    Array.from({ length: 20 }, () => "1000").join(",") +
+    "\n,,,\n";
+  const all = live.parseEskomCsvAll(csv);
+  assert.equal(all.resolution_sec, 3600);
+  assert.equal(all.points.length, 3);
+  // SAST is UTC+2 with no DST, so 00:00 local is 22:00Z the day before, and the
+  // points come back oldest first.
+  assert.equal(all.points[0].start, "2026-08-29T22:00:00Z");
+  assert.ok(Date.parse(all.points[2].start) > Date.parse(all.points[0].start));
+  // The live parser still takes only the newest, which is what keeps closed
+  // history days from being rewritten on every run.
+  assert.equal(live.parseEskomCsv(csv).points.length, 1);
+});
+
+test("parseOpennemAll aligns tracks that run on different clocks", () => {
+  // Coal every 5 minutes from 00:00; rooftop solar every 30 from 00:00. Reading
+  // by shared index would pair coal's 00:05 with solar's 00:30.
+  const payload = {
+    data: [
+      {
+        type: "power",
+        fuel_tech: "coal_black",
+        history: { start: "2026-08-30T00:00:00Z", interval: "5m", data: [1000, 1000, 1000, 1000, 1000, 1000, 1000] },
+      },
+      {
+        type: "power",
+        fuel_tech: "solar_rooftop",
+        history: { start: "2026-08-30T00:00:00Z", interval: "30m", data: [1000, 1000] },
+      },
+    ],
+  };
+  const all = live.parseOpennemAll(payload);
+  // Gridded on the COARSEST step, so every track really has a value at each
+  // instant rather than one being interpolated into existence.
+  assert.equal(all.resolution_sec, 1800);
+  assert.equal(all.points.length, 2);
+  assert.equal(all.points[0].start, "2026-08-30T00:00:00Z");
+  assert.equal(all.points[1].start, "2026-08-30T00:30:00Z");
+  // Coal 1000 + solar 1000 at each: 900 * 1000 / 2000.
+  for (const pt of all.points) approx(pt.direct, 450);
+  // And the live parser is unchanged: one point, the newest both tracks cover.
+  assert.equal(live.parseOpennem(payload).points.length, 1);
+});
+
+test("rangedFetcher says which feeds can be backfilled, and which ignore the window", () => {
+  const env = { ENTSOE_TOKEN: "t", EIA_TOKEN: "t" };
+  assert.ok(live.rangedFetcher("ENTSO-E", "DE", env));
+  assert.ok(live.rangedFetcher("ENTSO-E", "IT", env, "SICI"), "zones too");
+  assert.ok(live.rangedFetcher("EIA", "US", env));
+  assert.ok(live.rangedFetcher("Elexon", "GB", env));
+  // A national-only feed must never be asked for a zone.
+  assert.equal(live.rangedFetcher("Energy-Charts", "DE", env, "ANY"), null);
+  // No token, no backfill — rather than a silent empty result.
+  assert.equal(live.rangedFetcher("ENTSO-E", "DE", {}), null);
+  // Snapshot feeds with no past range at all.
+  for (const p of ["ONS", "EMC", "IESO", "NESO"]) {
+    assert.equal(live.rangedFetcher(p, "BR", env), null, p);
+  }
+  // These two carry a fixed span in one document and ignore the window asked for.
+  assert.equal(live.rangedFetcher("Eskom", "ZA", env).windowed, false);
+  assert.equal(live.rangedFetcher("OpenNEM", "AU", env).windowed, false);
+  assert.equal(live.rangedFetcher("ENTSO-E", "DE", env).windowed, undefined, "the rest honour it");
+});
+
 test("providerFor routing", () => {
   const expect = {
     GB: "NESO",
@@ -392,10 +864,14 @@ test("providerFor routing", () => {
     ZA: "Eskom",
     LU: "ENTSO-E",
     MK: "ENTSO-E",
-    BY: "ENTSO-E",
   };
   for (const [c, p] of Object.entries(expect)) assert.equal(live.providerFor(c), p, c);
   assert.equal(live.providerFor("NG"), null);
+  // Belarus has an ENTSO-E EIC code and no ENTSO-E data — it is an
+  // interconnection partner, not a member of the area. Routing it to a provider
+  // that answers "no matching data" for every window it is ever asked would
+  // advertise a live source that has never once produced an hour.
+  assert.equal(live.providerFor("BY"), null);
   // MX has no hourly source, so it must route nowhere rather than to a fetcher
   // that fails on every run.
   assert.equal(live.providerFor("MX"), null);
@@ -427,6 +903,60 @@ test("measuredLastHour: null for uncovered / failure", async () => {
     }),
     null,
   );
+});
+
+test("measuredLastHour: a give-up is reported, a success is not", async () => {
+  const seen = [];
+  const onFailure = (f) => seen.push(f);
+
+  await live.measuredLastHour("GB", {
+    attempts: 2,
+    backoffMs: 1,
+    onFailure,
+    fetchers: {
+      NESO: async () => {
+        throw new Error("HTTP 400 for https://x");
+      },
+    },
+  });
+  assert.deepEqual(seen, [{ code: "GB", zone: null, provider: "NESO", error: "HTTP 400 for https://x" }]);
+
+  // A provider with no fetcher registered is a configuration state, not an
+  // outage — IESO answers for CA/ON and deliberately not for CA — so it is not
+  // reported here at all.
+  seen.length = 0;
+  await live.measuredLastHour("FR", { fetchers: {}, onFailure });
+  assert.deepEqual(seen, []);
+
+  // A country with no provider at all is not a failure: it has an annual figure
+  // and was never going to be measured.
+  seen.length = 0;
+  await live.measuredLastHour("NG", { fetchers: {}, onFailure });
+  assert.deepEqual(seen, []);
+
+  seen.length = 0;
+  await live.measuredLastHour("AU", { onFailure, fetchers: { OpenNEM: async () => hourly(120) } });
+  assert.deepEqual(seen, []);
+});
+
+test("a reported provider URL carries no credential", () => {
+  // ENTSO-E and EIA pass theirs in the query string, and the failure message
+  // built from that URL now reaches a run log. Actions masks its own secrets; a
+  // local run has nothing doing that.
+  const url = "https://web-api.tp.entsoe.eu/api?documentType=A75&securityToken=s3cr3t";
+  assert.equal(live.safeUrl(url), "https://web-api.tp.entsoe.eu/api?documentType=A75&securityToken=***");
+  assert.match(live.safeUrl("https://api.eia.gov/v2/x?api_key=abc&length=200"), /api_key=\*\*\*&length=200/);
+  // Nothing to hide, nothing changed; and a URL object is accepted as well.
+  assert.equal(live.safeUrl("https://example.com/a.csv"), "https://example.com/a.csv");
+  assert.equal(live.safeUrl(new URL("https://example.com/a.csv")), "https://example.com/a.csv");
+});
+
+test("the ENTSO-E window is wide enough to outlast the platform's publication lag", () => {
+  // A window narrower than the lag returns HTTP 400 "No matching data found",
+  // which is indistinguishable from the provider being gone: the country drops
+  // out of the snapshot and its hourly routes go with it. Four hours behind is
+  // ordinary for A75, so three (what this used to request) was inside the lag.
+  assert.ok(live.ENTSOE_WINDOW_HOURS >= 6, "window must clear the worst observed lag");
 });
 
 // --- zones ---
@@ -557,4 +1087,34 @@ test("providerFor: Canada resolves to IESO, but only the zone has a fetcher", as
   assert.deepEqual(live.zonesFor("CA"), ["ON"]);
   // No zone -> no IESO fetcher -> null, so the country keeps its annual figure.
   assert.equal(await live.measuredLastHour("CA", { env: {} }), null);
+});
+
+// A provider that answered and had nothing to say is not a provider that could
+// not be reached. Before this distinction existed, an EIA respondent with no
+// published rows cost four requests per window and then told the backfill to
+// re-run, which could only produce the same emptiness again.
+test("an empty payload is reported as answered-and-empty, not as a failure to reach", () => {
+  const empty = JSON.stringify({ response: { data: [] } });
+  assert.throws(
+    () => live.parseEia(empty),
+    (e) => {
+      assert.equal(e.empty, true);
+      assert.equal(e.retryable, false);
+      return true;
+    },
+  );
+});
+
+test("retrying does not ask again for data the provider said it does not have", async () => {
+  let calls = 0;
+  await assert.rejects(
+    live.retrying(
+      async () => {
+        calls += 1;
+        return live.parseEia(JSON.stringify({ response: { data: [] } }));
+      },
+      { attempts: 4, backoffMs: 1 },
+    ),
+  );
+  assert.equal(calls, 1);
 });

@@ -1,3 +1,16 @@
 node_modules/
 dist/
 *.log
+
+# The pipeline's output. Built on demand from `site/` and the committed
+# annual snapshot, and published by syncing it to the bucket -- the
+# deployment repo commits it for audit, this one has no reason to.
+data/
+
+# Local state and secrets, never committed. Wrangler caches the Cloudflare
+# account id under .wrangler/; anything credential-shaped that reaches a commit
+# has to be rotated rather than just deleted, so it is kept out from the start.
+.wrangler/
+.env
+.env.*
+!.env.example

@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Carbon Intensity API</title>
+<!-- A file rather than a data URI: it sits in the bucket next to this page and
+     is served straight from the CDN — free, cached, no code in the path. -->
+<!-- ?v= is load-bearing: this site served no icon at all until now, and browsers
+     cache that absence past an ordinary reload. Bump it when the icon changes. -->
+<link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" />
+<style>
+  /* Neutrals carry a slight green cast rather than the blue-grey they had, so
+     the greys read as part of the mark's palette instead of sitting beside it.
+     Everything stays within a few points of its old value — this is a tint, not
+     a repaint, and text contrast is unchanged or better. */
+  :root {
+    --bg: #ffffff; --fg: #191d1a; --muted: #55655c; --card: #f4f8f6;
+    --border: #e0e8e3; --accent: #1a7f4b; --accent-soft: #e8f3ec;
+    --code-bg: #0d1117; --code-fg: #e6edf3;
+  }
+  /* Light only — no prefers-color-scheme override. Code blocks stay dark by
+     design, which is why the token colours below need no light variant. */
+  * { box-sizing: border-box; }
+  /* `system-ui` first, and Noto/Liberation named before Arial: the previous
+     stack fell through to a Linux default with no medium face, where a 500
+     weight silently renders as 400. */
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 500 16px/1.6 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+      Roboto, "Noto Sans", "Liberation Sans", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  /* 800 alone was doing nothing: most system UI fonts on Linux ship only
+     regular and bold, so anything above 700 rounds back down to 700. The
+     stroke thickens the glyphs themselves, which does not depend on a heavy
+     face existing — and stays in currentColor so it works on the green
+     tagline as well as the dark text. */
+  h1 {
+    font-size: 1.9rem; margin: 0 0 .25rem; font-weight: 900;
+    -webkit-text-stroke: .6px currentColor;
+    letter-spacing: -.01em;
+    /* The body's 1.6 is set for paragraphs; at 1.9rem across two lines it left
+       the title reading as two separate statements rather than one block. */
+    line-height: 1.15;
+  }
+  h2 { font-size: 1.15rem; margin: 2rem 0 .6rem; font-weight: 700; }
+  .tag { color: var(--accent); font-weight: 700; letter-spacing: .02em; }
+  .accent { color: var(--accent); }
+  /* Highlighter pen: a band 0.55em tall, painted behind the glyphs rather than
+     filling the line box, so it reads as a marker stroke and not a filled row.
+     Kept low enough to sit across the x-height — a thin band centred higher
+     would strike through the text instead. Backgrounds on an inline element
+     cover the content box, which is exactly 1em, so the offset is predictable.
+     box-decoration-break: clone restarts the stroke on each wrapped line;
+     without it a single band is stretched across the whole inline box. */
+  .mark {
+    color: #0f4d2a;
+    background-image: linear-gradient(#a7f3c4, #a7f3c4);
+    background-size: 100% .55em;
+    background-position: 0 .34em;
+    background-repeat: no-repeat;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .masthead { display: flex; gap: 1rem; align-items: flex-start; }
+  .masthead .tag { margin: 0 0 .1rem; }
+  .logo { flex: 0 0 auto; margin-top: .2rem; }
+  /* The table header gets the tint so the three-numbers and endpoint tables
+     read as tables at a glance, without adding borders. */
+  th { background: var(--accent-soft); }
+  p { color: var(--fg); }
+  .muted { color: var(--muted); }
+  a { color: var(--accent); }
+  code { background: var(--card); padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+  pre {
+    background: var(--code-bg); color: var(--code-fg); padding: 1rem; border-radius: 8px;
+    overflow-x: auto; font-size: .85rem; border: 1px solid var(--border);
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  /* Code blocks sit on a dark background in both themes, so these need no
+     light variant. */
+  .tok-key { color: #79c0ff; }
+  .tok-str { color: #a5d6ff; }
+  .tok-num { color: #f2cc60; }
+  .tok-lit { color: #ff7b72; }
+  ul { padding-left: 1.2rem; }
+  li { margin: .2rem 0; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 1rem 1.2rem; margin: 1rem 0; font-size: .85rem;
+  }
+  /* Heading sits inside the box, so it loses the section spacing it would have
+     had standing on its own. */
+  .card h2 { margin: 0 0 .5rem; font-size: 1rem; }
+  details h3 { font-size: .95rem; margin: 1.2rem 0 .4rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--border); }
+  th { font-weight: 700; }
+  footer { margin-top: 2.5rem; padding-top: 1.2rem; border-top: 1px solid var(--border); color: var(--muted); font-size: .85rem; }
+  details {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: .8rem 1.2rem; margin: 1rem 0;
+  }
+  summary { cursor: pointer; font-weight: 700; font-size: 1rem; }
+  details[open] summary { margin-bottom: .8rem; }
+  .info {
+    display: flex; gap: .6rem; align-items: flex-start;
+    background: #eef4fb; border: 1px solid #d3e3f5; border-radius: 10px;
+    padding: .7rem 1rem; margin: 1rem 0; font-size: .9rem;
+  }
+  .info p { margin: 0; }
+  .info code { background: #dbe8f7; }
+  .scroll { max-height: 26rem; overflow-y: auto; }
+  .zonelist { color: var(--muted); font-size: .85em; }
+  .no { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header class="masthead">
+    <!-- Same file as the favicon: one mark, one request, already cached. -->
+    <img class="logo" src="/favicon.svg?v=3" width="52" height="52" alt="" />
+    <div>
+      <p class="tag">CARBON INTENSITY API</p>
+      <h1>Last-hour grid carbon intensity, by country.<br /><em class="accent">Free &amp; Open Source.</em></h1>
+    </div>
+  </header>
+  <p class="muted">
+    Operational, lifecycle and consumption-based carbon intensity (gCO2eq/kWh)
+    for every country with published electricity data — 213 in total. True clock
+    hours where a live grid feed exists, a year of hourly history behind them,
+    and the annual average on its own route everywhere else.
+  </p>
+
+  <h2>Quick example</h2>
+  <p>Get the last completed hour for one country (ISO-3166 alpha-2):</p>
+  <pre><code>curl https://ci-api.fabiocicerchia.it/v2/DE/past-hour</code></pre>
+  <pre><code>{
+  "country": "Germany",
+  "country_code": "DE",
+  "zone": "DE",
+  "unit": "gCO2eq/kWh",
+  "period_start": "2026-08-27T17:00:00Z",
+  "period_end": "2026-08-27T18:00:00Z",
+  "resolution_sec": 900,
+  "points": 4,
+  "points_expected": 4,
+  "complete": true,
+  "direct": 280,
+  "lifecycle": 330,
+  "consumption_direct": 320,
+  "consumption_lifecycle": 370,
+  "basis": "measured",
+  "data_source": { "name": "ENTSO-E", "realtime": true, "status": "operational" },
+  "generated_at": "2026-08-27T19:13:36Z"
+}</code></pre>
+  <p class="muted">
+    <code>period_start</code> and <code>period_end</code> are a true clock hour.
+    <code>resolution_sec</code> is how wide the underlying provider points are —
+    900 for ENTSO-E's quarter-hours — and <code>points</code> against
+    <code>points_expected</code> is how much of the hour the mean covers.
+    <code>complete</code> is always <code>true</code> here; use
+    <code>/current-hour</code> for the hour still filling in.
+  </p>
+
+  <details>
+    <!-- The heading is the summary rather than an <h2> above the box: a details
+         already has a clickable title, and two titles for one section is one
+         too many. -->
+    <summary>Reading a response</summary>
+    <p class="muted">
+      The three numbers, and how to tell whether a reading is current.
+    </p>
+    <p>
+      Every reading carries four intensities, all in gCO2eq/kWh. They are the
+      corners of two independent axes: how much of the supply chain is counted,
+      and whether the figure describes electricity <em>made</em> in the country
+      or electricity <em>used</em> there.
+    </p>
+    <p class="muted">
+      Production-based counts what the country generates, exports included.
+      Consumption-based counts what comes out of a socket there, adjusted for
+      trade. They part company wherever a country imports heavily: Switzerland
+      generates at <strong>39</strong> on hydro and nuclear but consumes at
+      <strong>179</strong>, because much of what it uses is bought in. Running a
+      server in Zürich, 39 flatters you.
+    </p>
+    <table>
+      <tr><th></th><th>Production-based</th><th>Consumption-based</th></tr>
+      <tr>
+        <th>Combustion only</th>
+        <td><code>direct</code></td>
+        <td><code>consumption_direct</code></td>
+      </tr>
+      <tr>
+        <th>Plus upstream</th>
+        <td><code>lifecycle</code></td>
+        <td><code>consumption_lifecycle</code></td>
+      </tr>
+    </table>
+    <p class="muted">
+      They are not a ladder. <code>consumption_direct</code> is larger than
+      <code>lifecycle</code> for an importing country while counting less of the
+      supply chain — the suffixes say which corner each figure sits in.
+    </p>
+    <table>
+      <tr><th>Field</th><th>What it counts</th></tr>
+      <tr>
+        <td><code>direct</code></td>
+        <td>
+          Combustion only — what the stack emits while generating, computed from
+          the live fuel mix. Nuclear, hydro, wind and solar count as zero.
+          <strong>The only figure that genuinely varies hour to hour.</strong>
+        </td>
+      </tr>
+      <tr>
+        <td><code>lifecycle</code></td>
+        <td>
+          Adds extraction, transport, construction and manufacturing — why wind
+          and solar are not truly zero. IPCC AR6 factors, applied as a fixed
+          per-country uplift. <strong>Use this one by default.</strong>
+        </td>
+      </tr>
+      <tr>
+        <td><code>consumption_direct</code></td>
+        <td>
+          Adds imported electricity, so it describes what a country consumes
+          rather than what it generates — still combustion-only, hence the
+          suffix. A fixed annual adjustment, and absent from zone readings.
+        </td>
+      </tr>
+      <tr>
+        <td><code>consumption_lifecycle</code></td>
+        <td>
+          Both adjustments at once: what is consumed here, counted across the
+          whole supply chain. <strong>The figure to report a footprint
+          with.</strong>
+          <br /><span class="muted">Also the most modelled of the four — the
+          upstream uplift is derived from the domestic generation mix and
+          applied to the consumed one, which assumes imports carry a similar
+          upstream intensity per kWh.</span>
+        </td>
+      </tr>
+    </table>
+    <div class="info">
+      <span aria-hidden="true">&#8505;&#65039;</span>
+      <p>
+        All four are <code>direct</code> plus a per-country constant, so
+        <strong>within one country</strong> they rank the hours of a day
+        identically. Deciding <em>when</em> to run something, any of them gives
+        the same answer.
+        <br /><br />
+        <strong>Across countries they do not.</strong> The constants differ, so
+        the ordering changes: by <code>direct</code>, Switzerland (39) looks
+        cleaner than France (41); by <code>consumption_direct</code> it is
+        France (85) against Switzerland's (179). Deciding <em>where</em> to run
+        something, the figure you pick decides the answer — use
+        <code>consumption_lifecycle</code>.
+      </p>
+    </div>
+
+    <h3>Is the reading current?</h3>
+    <p>
+      There is no <code>stale</code> flag: responses are static files, so nothing
+      can evaluate freshness at the moment you ask. <code>generated_at</code> tells
+      you when the snapshot was built, and two checks cover it:
+    </p>
+    <ul>
+      <li>
+        <strong>Is it a real measurement?</strong> Only
+        <code>basis: "measured"</code> describes the hour you asked for.
+        The yearly figure is no longer a stand-in on an hourly route: it has
+        its own, <code>/v2/&lt;CODE&gt;/yearly</code>, which every country
+        answers. The hourly routes 404 where no live feed exists, rather than
+        quietly serving a constant that describes no particular hour.
+      </li>
+      <li>
+        <strong>If measured, is it late?</strong> Those refresh hourly, so more
+        than about <strong>65 minutes</strong> between <code>generated_at</code>
+        and now means a run was missed. The age test applies <em>only</em> to
+        measured readings — annual ones are rewritten just weekly, since a
+        yearly figure cannot go out of date in an hour, so an old
+        <code>generated_at</code> on one is expected rather than a fault.
+      </li>
+    </ul>
+    <pre><code>stale = (Date.now() - Date.parse(r.generated_at)) > 3900e3
+     || r.basis !== "measured";</code></pre>
+  </details>
+
+  <h2>Endpoints</h2>
+  <p>Lookups are path-based — the bucket is served directly, so there is nothing
+  in the request path to read a query string. See the
+  <a href="/docs.html">API reference</a>, rendered from
+  <a href="/v2/openapi.json"><code>openapi.json</code></a>.</p>
+  <table>
+    <tr><th>Path</th><th>Returns</th></tr>
+    <tr><td><code>/v2/&lt;CODE&gt;/past-hour</code></td><td>The last <strong>completed</strong> clock hour: the mean of every point in it. Immutable once published.</td></tr>
+    <tr><td><code>/v2/&lt;CODE&gt;/current-hour</code></td><td>The hour <strong>in progress</strong>: the mean of the points so far.</td></tr>
+    <tr><td><code>/v2/&lt;CODE&gt;/latest</code></td><td>The newest hour the provider has published, <strong>however old</strong>. Some feeds run a day or more behind by design; for those this is the only reading there is.</td></tr>
+    <tr><td><code>/v2/&lt;CODE&gt;/history/&lt;YYYY-MM-DD&gt;</code></td><td>One UTC day of hourly means, 365 days retained. A past day never changes again, so it is safe to cache forever.</td></tr>
+    <tr><td><code>/v2/&lt;CODE&gt;/yearly</code></td><td>The annual average. Every country has one.</td></tr>
+    <tr><td><code>/v2/&lt;CODE&gt;/&lt;ZONE&gt;/…</code></td><td>The same hourly routes for a bidding zone or balancing region — <code>/v2/IT/SICI/past-hour</code>. Measured only; 404 when the provider has nothing, so treat it as <em>ask the country instead</em>.</td></tr>
+    <tr><td><code>/v2/countries.json</code></td><td>Every country: metadata, zones, realtime availability and annual figures</td></tr>
+    <tr><td><code>/v2/past-hour.json</code></td><td>The measured countries' last completed hour, in one document</td></tr>
+  </table>
+  <p class="muted">
+    An UPPERCASE segment is a code and a lowercase-hyphenated one is a resource,
+    so <code>/v2/IT/SICI/past-hour</code> reads as country, zone, resource. Only
+    countries with a live grid feed answer on the hourly routes; the rest have
+    <code>/yearly</code>. ISO-3166 alpha-2 only.
+  </p>
+  <p class="muted">
+    <strong>When a grid feed goes down</strong>, <code>/past-hour</code> and
+    <code>/current-hour</code> <code>404</code> on the very next run — no grace
+    period, nothing held back. Both are named for particular clock hours and mean
+    them, so a missing hour is a missing hour.
+    <code>/latest</code> is what carries a reading across the outage, for as long
+    as the outage lasts: it has no age bound and is not rewritten while a feed is
+    quiet, so its <code>generated_at</code> stands still and its age shows.
+    <code>period_start</code>/<code>period_end</code> always say which hour a
+    document describes.
+  </p>
+  <p class="muted">
+    <strong>Which countries answer on which route</strong> depends on how far
+    behind their grid feed publishes, not on the country, so it moves.
+    <code>/v2/countries.json</code> carries the live answer per country:
+    <code>routes</code> (which of the three answered),
+    <code>data_lag_seconds</code> (how far behind the newest hour reaches) and
+    <code>stale</code> — the <em class="mark">⚠️ warning flag</em>, set when the
+    lag is past the bound the hour-named routes are held to, so only
+    <code>/latest</code> answers and the figures are a <em>recent</em> reading
+    rather than a current one. Two feeds sit there as a rule: EIA (US) publishes
+    about a day behind and Eskom (ZA) several days. Check those fields rather
+    than assuming.
+  </p>
+  <p class="muted">
+    <strong>Rate limit:</strong> <strong>10 requests per 10 seconds per IP</strong>,
+    answered with <code>429</code> beyond that — and the body of a <code>429</code>
+    is not JSON, so check the status code before parsing. If you want several
+    countries at once, <code>/v2/countries.json</code> and
+    <code>/v2/past-hour.json</code> each return the lot in a single request,
+    which is both faster and kinder than looping over the per-country routes.
+    <br /><em class="mark">And in the spirit of the thing: every request carries
+    a little carbon of its own. Cache what you fetch, and poll no faster than your
+    decisions actually change — the readings only move once an hour.</em>
+  </p>
+
+  <details id="coverage">
+    <summary>Supported countries and zones</summary>
+    <p class="muted" id="coverage-note"></p>
+    <div class="scroll">
+      <table id="coverage-table"></table>
+    </div>
+  </details>
+
+  <script>
+    // Colour the JSON samples. Small enough to not want a highlighting library,
+    // and the page must stay self-contained anyway.
+    (() => {
+      const escapeHtml = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+      const colour = (text) => escapeHtml(text).replace(
+        // A string, optionally followed by a colon (making it a key); or a
+        // literal; or a number.
+        /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false|null)\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+        (_m, str, colon, lit, _num) => {
+          if (str) return `<span class="tok-${colon ? "key" : "str"}">${str}</span>${colon || ""}`;
+          if (lit) return `<span class="tok-lit">${lit}</span>`;
+          return `<span class="tok-num">${num}</span>`;
+        },
+      );
+      for (const code of document.querySelectorAll("pre code")) {
+        const text = code.textContent;
+        // Only the JSON blocks — the curl examples are left alone.
+        if (/^\s*[{[]/.test(text)) code.innerHTML = colour(text);
+      }
+    })();
+
+    // Rendered from the live endpoint rather than written out here, so the list
+    // cannot drift from what the API actually serves as countries and zones
+    // are added. Fetched on first open rather than on load: most visitors never
+    // expand it, and the payload is far larger than the rest of the page.
+    (() => {
+      const details = document.getElementById("coverage");
+      const note = document.getElementById("coverage-note");
+      const table = document.getElementById("coverage-table");
+      const link = () => {
+        note.textContent = "";
+        const a = document.createElement("a");
+        a.href = "/v2/countries.json";
+        a.textContent = "/v2/countries.json";
+        note.append("Could not load the list — see ", a, " directly.");
+      };
+      let started = false;
+      const load = async () => {
+      try {
+        const res = await fetch("/v2/countries.json");
+        if (!res.ok) throw new Error(res.status);
+        const { count, countries } = await res.json();
+        const zoned = countries.filter((c) => c.zones?.length);
+        const zoneTotal = zoned.reduce((n, c) => n + c.zones.length, 0);
+        note.textContent = `${count} countries, of which ${zoned.length} are `
+          + `subdivided into ${zoneTotal} zones. "Live" marks a country with a `
+          + `real-time feed; the rest carry the annual snapshot.`;
+        const head = table.insertRow();
+        for (const h of ["Code", "Country", "Live", "Zones"]) {
+          const th = document.createElement("th");
+          th.textContent = h;
+          head.append(th);
+        }
+        for (const c of countries) {
+          const row = table.insertRow();
+          const cells = [c.country_code, c.country, c.realtime_available ? "yes" : "—"];
+          for (const v of cells) row.insertCell().textContent = v;
+          const z = row.insertCell();
+          z.className = "zonelist";
+          z.textContent = c.zones?.length ? c.zones.join(" ") : "";
+          if (!c.realtime_available) row.cells[2].className = "no";
+        }
+      } catch {
+        link();
+      }
+      };
+      details.addEventListener("toggle", () => {
+        // `toggle` also fires on close, and the browser restores `open` on
+        // reload — guard so the fetch happens once, on the first expand.
+        if (!details.open || started) return;
+        started = true;
+        note.textContent = "Loading…";
+        load();
+      });
+    })();
+  </script>
+
+  <h2>Data &amp; methodology</h2>
+  <p class="muted">
+    Built from raw grid-operator data with lifecycle factors following
+    <a href="https://www.ipcc.ch/report/ar6/wg3/downloads/report/IPCC_AR6_WGIII_Annex-III.pdf">IPCC
+    AR6, WG III, Annex III</a> and consumption-based accounting in the spirit of
+    the <a href="https://doi.org/10.1038/s41597-025-05978-7">ECON-PowerCI
+    method</a> (<em>Scientific Data</em> 12, 2025). Live readings
+    compute operational intensity from each grid's generation mix; lifecycle and
+    consumption are layered on per country.
+  </p>
+
+  <div class="card">
+    <h2>Sources &amp; attribution</h2>
+    <ul>
+      <li>Annual figures: <a href="https://github.com/owid/energy-data">Our World in Data</a> energy dataset (Ember; Energy Institute Statistical Review) — CC-BY 4.0.</li>
+      <li>Real-time source catalogue: operator names and reference URLs, partially
+          compiled from <a href="https://github.com/electricitymaps/electricitymaps-contrib">electricitymaps-contrib</a>
+          (<code>DATA_SOURCES.md</code>), which was also used to cross-check coverage.</li>
+      <li>Lifecycle emission factors: <a href="https://www.ipcc.ch/report/ar6/wg3/downloads/report/IPCC_AR6_WGIII_Annex-III.pdf">IPCC AR6, WG III (2022), Annex III</a>.</li>
+      <li>Consumption-based method: <a href="https://doi.org/10.1038/s41597-025-05978-7">ECON-PowerCI</a>, <em>Scientific Data</em> 12 (2025) — the approach, not the dataset.</li>
+      <li>Live generation data: the operators named in each response's <code>data_source</code> (ENTSO-E, EIA, NESO, ONS, OpenNEM, EMC, Eskom, …), subject to their own terms. <strong>The intensity figures are computed here from that generation data and are not published or endorsed by those operators.</strong></li>
+      <li>United States: <a href="https://www.eia.gov/opendata/">U.S. Energy Information Administration</a>, via the EIA API under its Terms of Service — source of the generation mix only.</li>
+      <li>Europe: <a href="https://transparency.entsoe.eu/">ENTSO-E Transparency Platform</a>, re-usable data under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Adapted: generation per production type is weighted by emission factors to derive an intensity.</li>
+    </ul>
+  </div>
+
+  <footer>
+    © 2026 Fabio Cicerchia · Licensed under
+    <a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0-or-later</a> ·
+    <a href="https://github.com/fabiocicerchia/carbon-intensity-api">source</a>
+  </footer>
+</main>
+</body>
+</html>
