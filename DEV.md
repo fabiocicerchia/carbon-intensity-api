@@ -34,12 +34,12 @@ Compute happens **once**, in [`sync.sh`](./sync.sh), which runs the pipeline
 into `data/` and syncs `data/` to the bucket — including the site pages, with
 their own content types, and a check that the objects actually landed. The
 deployment's Action does no work of its own: it supplies the environment (the
-`R2_*` secrets as the `S3_*`/`AWS_*` ones) and commits `data/` for audit. The R2
+bucket, the endpoint and the credentials) and commits `data/` for audit. The
 bucket is **served directly** on the custom domain — no Worker, no application
 in the request path. Nothing reads GitHub at runtime.
 
 ```
-hourly Action ─► api/sync.sh ─► data/ ─► aws s3 sync ─► R2 bucket ─► clients
+hourly Action ─► api/sync.sh ─► data/ ─► aws s3 sync ─► bucket ─► clients
                                    └► committed in the deployment repo (audit)
 ```
 
@@ -75,50 +75,30 @@ to the scheduled run unless you mean to publish. `OUT_DIR` moves the build
 somewhere other than `./data`, which is how the deployment repo has it write
 into its own tree while running the script from the submodule.
 
-## Cloudflare setup (R2, served directly)
+## Publishing to a bucket
 
-1. **Create the bucket**
-   ```bash
-   npx wrangler r2 bucket create carbon-intensity-api
-   ```
-   Via `npx` — wrangler was the Worker's dev dependency and went with it. This
-   is the only command that still wants it, and it runs once.
+Anything S3-compatible works — `sync.sh` only ever speaks to the `aws` CLI. The
+provider-specific clicking is deliberately not written down here; the hosted
+deployment's is, in the deployment repo's `DEV.md`.
 
-2. **Attach the custom domain to the bucket** — R2 → the bucket → Settings →
-   Public access → Connect domain → `ci-api.fabiocicerchia.it`. The hostname can
-   only point at one thing, so any Worker route on it has to be removed first.
+1. **Create the bucket**, and give it a public custom domain. That hostname can
+   only point at one thing, so nothing else may hold the route.
 
-3. **Rewrite `/` to the landing page.** Public buckets have no index document:
-   the docs state plainly that they "do not let you list the bucket contents at
-   the root of your (sub) domain", so `/` 404s. Rules → Transform Rules →
-   Rewrite URL, when `http.request.uri.path eq "/"`, rewrite path to
-   `/index.html`. Free, and no code.
+2. **Rewrite `/` to the landing page.** A public bucket has no index document,
+   so `/` 404s until the edge rewrites it to `/index.html`. An edge rewrite rule
+   does it with no code in the request path.
 
-4. **Add GitHub Action secrets** — on the deployment repo, which is where the
-   hourly run lives (Settings → Secrets and variables → Actions):
+3. **Set the environment** wherever `sync.sh` runs: `S3_BUCKET`, `S3_ENDPOINT`,
+   `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optionally `ENTSOE_TOKEN`
+   and `EIA_TOKEN` to unlock the token-gated providers. `sync.sh` refuses to
+   start without the first four rather than leaving the bucket empty behind a
+   green run.
 
-   | Secret                 | Purpose                                                        |
-   | ---------------------- | -------------------------------------------------------------- |
-   | `R2_ACCESS_KEY_ID`     | R2 API token (S3) — becomes `AWS_ACCESS_KEY_ID`                |
-   | `R2_SECRET_ACCESS_KEY` | R2 API token secret — becomes `AWS_SECRET_ACCESS_KEY`          |
-   | `R2_ACCOUNT_ID`        | Cloudflare account id — builds `S3_ENDPOINT`                   |
-   | `R2_BUCKET`            | bucket name, e.g. `carbon-intensity-api` — becomes `S3_BUCKET` |
-   | `CF_PURGE_TOKEN`       | Cloudflare API token with **Zone → Cache Purge**               |
-   | `CF_ZONE_ID`           | zone id for `fabiocicerchia.it` (Overview → API section)       |
-   | `ENTSOE_TOKEN`         | optional — unlock ~38 European zones                           |
-   | `EIA_TOKEN`            | optional — unlock the US                                       |
+4. **Seed the bucket** by running it once. Until the first sync lands every path
+   404s — there is no fallback layer.
 
-   Create the R2 S3 credentials under **R2 → Manage R2 API Tokens**. The four
-   `R2_*` secrets are required: the workflow fails if they are absent, rather
-   than skipping the sync and leaving the bucket empty behind a green run.
-
-5. **Seed the bucket** — on the deployment repo, Actions → hourly-snapshot →
-   Run workflow. Until the first sync lands, every path 404s: there is no
-   fallback layer any more.
-
-6. **CORS**, if browsers on other origins will call it — R2 → the bucket →
-   Settings → CORS policy. Same-origin calls from the landing page do not need
-   it; a third-party web app does.
+5. **CORS**, if browsers on other origins will call it. Same-origin calls from
+   the landing page do not need it; a third-party web app does.
 
 ### Key layout
 
@@ -184,7 +164,7 @@ used to compute them. A bucket cannot run `resolveCode()`, so `DEU` has to exist
   next one; nothing re-checks the provider on request — bounded by the expiry
   below: an hour-named route 404s on the next run rather than serving a stale
   file, and only `/latest` carries a reading across the gap.
-- **Cloudflare's 404 page**, not `{"detail": "...", "zones": [...]}`.
+- **The edge's own 404 page**, not `{"detail": "...", "zones": [...]}`.
 
 ## Self-hosting
 
@@ -510,8 +490,8 @@ those objects genuinely cannot go stale. `--exclude` also protects them from
 just from upload — while the second pass's `--delete` is what carries retention
 through: a day pruned locally disappears from the bucket on the next sync.
 
-**There is no purge step any more, and no `CF_PURGE_TOKEN`.** It had to go:
-`purge_everything` evicts objects whether or not they changed, so it would have
+**There is no purge step any more.** It had to go: a blanket purge evicts
+objects whether or not they changed, so it would have
 thrown away the immutable days three times an hour and made their long TTL
 decorative — and since v2 keeps history under each `v2/{CC}/` prefix beside the
 mutable objects, no prefix purges one without the other. So `s-maxage` came down
@@ -524,72 +504,41 @@ purge could never reach a browser cache anyway.
 `sync.sh` keeps an optional `CDN_PURGE_CMD` hook for self-hosting. If you use
 it, purge specific prefixes — a blanket purge re-breaks the above.
 
-Cache hits never reach R2, so they cost no Class B operation and are answered
-from the local colo. WAF sits ahead of the cache in the traffic sequence, so
-rate limiting still counts requests that never touch the bucket.
+Cache hits never reach the bucket, so they cost no read operation. A WAF sits
+ahead of the cache in the usual traffic sequence, so rate limiting still counts
+requests that never touch storage.
 
 ## Rate limiting
 
-A WAF **rate limiting rule**. There is no application code to put a limiter
-in, and the rule runs at the edge before the bucket is read.
+An **edge rate-limiting rule**, matching `/v1/` and `/v2/`. There is no
+application code to put a limiter in — the bucket is served directly — so this
+is the only place it can go, and it runs before the bucket is read.
 
-```
-Expression:  (http.host eq "ci-api.fabiocicerchia.it"
-              and (starts_with(http.request.uri.path, "/v1/")
-                or starts_with(http.request.uri.path, "/v2/")))
-Requests:    10
-Period:      10 seconds
-Action:      Block
-```
+v2's paths have no shared resource prefix to match on: `/v2/IT/past-hour` and
+`/v2/FR/history/…` have only `/v2/` in common, and narrowing to
+`^/v2/[A-Z]{2}/` needs a regex operator the cheap plans do not have. So the rule
+covers both version prefixes whole and everything shares one counter — which is
+why the threshold has to leave room for a client filling a history window on
+first boot to finish inside one interval rather than trickling.
 
-**10 seconds is the ceiling on the free plan** — periods go up to 300s (5 min)
-and beyond, but Free allows only 10s, Pro 60s, Business 10 min. A longer window
-means upgrading the zone, not changing anything here.
+Whatever the edge returns on a block will not be JSON, and on a plan without
+custom response bodies it cannot be made so. Clients must check the status
+before parsing; the README says as much.
 
-**Free also allows exactly one rule per zone**, and that is why the threshold is
-10 rather than the 1 it used to be. v2's paths have no shared resource prefix to
-match on — `/v2/IT/past-hour` and `/v2/FR/history/…` have only `/v2/` in common,
-and matching `^/v2/[A-Z]{2}/` needs a regex operator Free does not have — so the
-rule widened to the whole of `/v1/` and `/v2/`, and everything shares one
-counter. At 1/10s a client filling a history window on first boot would take
-minutes; at 10/10s it finishes in one interval. 60 req/min/IP is still far below
-anything that dents the 10M Class B/month free tier. The widening also brings
-in `/v1/countries` and `/v1/last-hour/index.json`, which the previous expression
-missed — it named `last-hour/`, `zones/` and `latest.json` and stopped there.
-
-A blocked request gets Cloudflare's built-in page: `429`, `content-type:
-text/plain`, body `error code: 1015`. Custom response bodies for rate-limiting
-rules are Pro-and-above, so clients must check the status before parsing.
+The hosted deployment's actual thresholds and rule expression are in the
+deployment repo — they are properties of that account's plan, not of this code.
 
 ## Emergency stop
 
-Cloudflare has no spend cap, so an abusive caller turns into an invoice rather
-than an outage. There is no automatic backstop — set a billing alert, and keep a
-way to cut traffic by hand. (R2 gives 10 GB storage and 10M class-B reads a
-month free, and cache hits are not reads at all, so this is headroom rather than
-an imminent bill.)
+Serving from a bucket means there is **no code in the request path to refuse
+anything**, and the CDN in front of it has no spend cap, so an abusive caller
+turns into an invoice rather than an outage. There is no automatic backstop: set
+a billing alert, and keep a pre-made edge block rule sitting **disabled**, so
+pulling the plug is one toggle with no deploy and no propagation wait.
 
-**Available today — WAF custom rule.** Security → WAF → Custom rules:
-
-```
-Expression:  (http.host eq "ci-api.fabiocicerchia.it")
-Action:      Block
-```
-
-Create it and leave it **disabled**, so pulling the plug is one toggle with no
-deploy and no propagation wait. The free plan includes five custom rules.
-
-This is the only layer available: with the bucket served directly there is no
-code in the request path to refuse anything. WAF custom rules run early in the
-traffic sequence (DDoS → URL rewrites → Page Rules → IP access → Bots → WAF →
-origin), so a block never reads an object. The cost is that callers get
-Cloudflare's generic 403 page, not a useful body.
-
-Blocking at the WAF is now the whole story: the Worker-level kill switch that
-was noted here has nowhere to live, since no code runs in front of the bucket.
-A gentler alternative, if you ever want a maintenance message rather than a 403,
-is a Transform Rule rewriting `/v1/*` to a static `maintenance.json` in the
-bucket.
+The cost is that callers get the edge's generic 403 page, not a useful body. If
+you would rather serve a maintenance message, a rewrite rule pointing `/v1/*` at
+a static `maintenance.json` in the bucket does it.
 
 ## License
 
