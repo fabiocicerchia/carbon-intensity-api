@@ -51,8 +51,15 @@ aws s3 sync "$OUT_DIR" "s3://$S3_BUCKET" --endpoint-url "$S3_ENDPOINT" --delete 
 # its file, so the object never changes again and can be cached indefinitely.
 # --delete here is what carries retention through to the bucket: a day the
 # pipeline pruned locally is removed from the bucket on the next sync.
+#
+# --size-only, and this is the whole R2 bill. By default `aws s3 sync` uploads
+# whenever the local file is newer than the object, and actions/checkout stamps
+# every file in the data directory with the checkout time on every run — so all
+# ~7k closed days were re-uploaded hourly, 170k+ Class A operations a day, to
+# replace each object with a byte-identical copy. Closed days never change, so
+# size is the right comparison here, not a weaker one.
 # shellcheck disable=SC2086 # $SITE is a list of flags, and is meant to split
-aws s3 sync "$OUT_DIR" "s3://$S3_BUCKET" --endpoint-url "$S3_ENDPOINT" --delete \
+aws s3 sync "$OUT_DIR" "s3://$S3_BUCKET" --endpoint-url "$S3_ENDPOINT" --delete --size-only \
   --exclude "*" --include "*/history/*" --exclude "*/history/$TODAY" $SITE \
   --content-type application/json --only-show-errors \
   --cache-control "public, max-age=31536000, s-maxage=31536000, immutable"
