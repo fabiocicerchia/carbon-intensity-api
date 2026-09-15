@@ -14,10 +14,18 @@ export function fsStore(baseDir) {
         return null;
       }
     },
+    // Identical bytes are not rewritten: the pipeline re-emits every live file
+    // each run whether its numbers moved or not, and `aws s3 sync` compares
+    // mtimes — so writing regardless re-uploaded ~1k unchanged objects an hour.
     async put(path, body) {
-      const { writeFile, mkdir } = await import("node:fs/promises");
+      const { writeFile, mkdir, readFile } = await import("node:fs/promises");
       const { join, dirname } = await import("node:path");
       const full = join(baseDir, path);
+      try {
+        if ((await readFile(full, "utf8")) === body) return;
+      } catch {
+        // Not there yet, or unreadable — write it.
+      }
       await mkdir(dirname(full), { recursive: true });
       await writeFile(full, body, "utf8");
     },
