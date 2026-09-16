@@ -81,10 +81,77 @@ const HOUR_READING = {
     points_expected: { type: "integer", description: "`3600 / resolution_sec`." },
     complete: {
       type: "boolean",
-      description: "Whether `points` reached `points_expected`. Always true on /past-hour.",
+      description:
+        "Whether `points` reached `points_expected`. True on a measured /past-hour, " +
+        "and false on an estimated one, which rests on no provider points at all.",
     },
     ...figureProps(),
-    basis: { type: "string", enum: ["measured"] },
+    basis: {
+      type: "string",
+      enum: ["measured", "estimated"],
+      description:
+        "`measured` — computed from the mix the feed published for this hour. " +
+        "`estimated` — the feed had not published this hour, so it was modelled " +
+        "from the newest hour it did publish and this grid's own recent shape. " +
+        "An estimate carries an `estimate` block and `points: 0`; /latest is " +
+        "never estimated.",
+    },
+    estimate: {
+      type: "object",
+      description:
+        "Present only when `basis` is `estimated`. The figure is this API's, not " +
+        "the feed's, and `data_source` says so — `from_source` names the feed " +
+        "whose history it was modelled from.",
+      properties: {
+        method: { type: "string", enum: ["diurnal-profile-anchored"] },
+        anchor_hour: {
+          type: "string",
+          format: "date-time",
+          description:
+            "The newest hour the feed actually published — complete or not, since a " +
+            "partly filled hour is still a measurement and is an hour closer to the " +
+            "target, which shortens the extrapolation.",
+        },
+        anchor_complete: {
+          type: "boolean",
+          description:
+            "False when the anchor hour was only partly published: its mean covers " +
+            "just the part that arrived, while the ratio is taken against a " +
+            "full-hour profile.",
+        },
+        hours_ahead: {
+          type: "integer",
+          description:
+            "How far past the anchor this hour is. Bounded: wind is weather, the " +
+            "anchor is what carries it, and that stops holding within a few " +
+            "hours. Beyond the bound the route 404s instead.",
+        },
+        max_hours: {
+          type: "integer",
+          description:
+            "The horizon actually applied this run — the larger of the country's " +
+            "backtested figure and how far behind its provider is publishing, " +
+            "capped at six. A feed three hours behind has to be reached across " +
+            "three hours for /current-hour to exist at all, so the lag lifts the " +
+            "horizon rather than the route disappearing.",
+        },
+        backtested_max_hours: {
+          type: "integer",
+          description:
+            "How far this country's estimates were measured to stay within the " +
+            "error bound (p90 within 30% or 20 gCO2eq/kWh). Where `hours_ahead` " +
+            "exceeds it, the estimate was stretched to cover provider lag and is " +
+            "outside what the backtest verified — filter on this to keep only " +
+            "the estimates inside the measured bound.",
+        },
+        profile_days: { type: "integer" },
+        profile_samples: {
+          type: "integer",
+          description: "Same-hour, same-day-type observations behind the shape used.",
+        },
+        from_source: { type: ["string", "null"] },
+      },
+    },
     generated_at: { type: "string", format: "date-time" },
     data_source: DATA_SOURCE_SCHEMA,
     data_year: { type: "integer" },
@@ -163,8 +230,11 @@ const NOT_JSON = {
   description:
     "No data. Served by the edge as HTML, NOT as JSON — check the status code " +
     "before parsing the body. For a history date this means no data for that " +
-    "date, not an error; for an hourly route it means that code has no live " +
-    "provider. `/v2/countries.json` says which do.",
+    "date, not an error; for an hourly route it means there is no such hour to " +
+    "serve — either the code has no live provider at all, or its provider has " +
+    "not published one recently enough. `/v2/countries.json` carries `routes` " +
+    "and `data_lag_seconds` per country, which say which of the three answer " +
+    "and how far behind that country's feed is running.",
   content: { "text/html": { schema: { type: "string" } } },
 };
 
@@ -250,7 +320,7 @@ export function buildSpec({ version = PKG.version } = {}) {
       "/v2/{code}/past-hour": op({
         summary: "Last completed clock hour",
         description:
-          "The newest hour holding all of its points. Immutable once published. Absent (404) until a complete hour exists in the provider's window.",
+          "The newest hour holding all of its points. Immutable once published. Absent (404) whenever no such hour exists — until the provider has published a complete one, and again on the very next run once it stops. Nothing is held back during an outage and the route will not reach back more than a few hours for an older complete hour; `/latest` is what carries a reading across a gap.",
         tags: ["country"],
         params: ["code"],
         ref: "HourReading",
@@ -259,11 +329,25 @@ export function buildSpec({ version = PKG.version } = {}) {
       "/v2/{code}/current-hour": op({
         summary: "Hour in progress",
         description:
-          "The newest hour with any data. Changes between runs as the rest of the hour arrives, so `complete` is usually false and `period_end` is in the future.",
+          "The newest hour with any data. Changes between runs as the rest of the hour arrives, so `complete` is usually false and `period_end` is in the future. 404s on the next run if the provider stops answering, rather than being held back — use `/latest` for the last reading across a gap.",
         tags: ["country"],
         params: ["code"],
         ref: "HourReading",
         okText: "The hour in progress.",
+      }),
+      "/v2/{code}/latest": op({
+        summary: "Newest hour with data, however old",
+        description:
+          "The newest hour the provider has published, with no bound on its age — " +
+          "read `period_start` and `generated_at` to see how old it is. The two " +
+          "routes above are named for particular clock hours and mean them, so " +
+          "they 404 when the provider has not published one; this route answers " +
+          "for feeds that run a day or more behind by design, where it is the " +
+          "only reading there is. Identical in shape to `/current-hour`.",
+        tags: ["country"],
+        params: ["code"],
+        ref: "HourReading",
+        okText: "The newest hour the provider has published.",
       }),
       "/v2/{code}/history/{date}": op({
         summary: "One UTC day of hourly means",
@@ -291,6 +375,14 @@ export function buildSpec({ version = PKG.version } = {}) {
         params: ["code", "zone"],
         ref: "HourReading",
         okText: "The hour in progress for the zone.",
+      }),
+      "/v2/{code}/{zone}/latest": op({
+        summary: "Newest hour with data for a zone, however old",
+        description: "As the country route: unbounded in age, and the only reading for a slow feed.",
+        tags: ["zone"],
+        params: ["code", "zone"],
+        ref: "HourReading",
+        okText: "The newest hour for the zone.",
       }),
       "/v2/{code}/{zone}/history/{date}": op({
         summary: "One UTC day of hourly means for a zone",
@@ -375,7 +467,61 @@ export function buildSpec({ version = PKG.version } = {}) {
                   data_year: { type: "integer" },
                   realtime_available: {
                     type: "boolean",
-                    description: "Whether the hourly routes answer for this country.",
+                    description:
+                      "Whether a live provider exists for this country. It does not " +
+                      "promise that every hourly route answers — read `routes` for that.",
+                  },
+                  provider: {
+                    type: ["string", "null"],
+                    description:
+                      "The feed behind the hourly routes: ENTSO-E, EIA, NESO, ONS, " +
+                      "OpenNEM, EMC, Eskom, IESO. Null where there is none and only " +
+                      "`/yearly` answers.",
+                  },
+                  routes: {
+                    type: "array",
+                    items: { type: "string", enum: ["past-hour", "current-hour", "latest"] },
+                    description:
+                      "Which hourly routes answered as of `generated_at` — the list to " +
+                      "check before requesting one. It is a property of how far behind " +
+                      "the provider is publishing, not of the country, so it moves: a " +
+                      "feed running a day behind carries `latest` alone, a live one " +
+                      "carries all three, and a country whose provider is down carries " +
+                      "none. Zones are not covered here; ask the zone route directly.",
+                  },
+                  data_lag_seconds: {
+                    type: ["integer", "null"],
+                    description:
+                      "How far behind `generated_at` the newest hour this country has " +
+                      "is — measured to the end of that hour, so a live feed sits near " +
+                      "zero. Observed this run, not a guarantee: it moves with the " +
+                      "provider. Null where nothing has been published at all.",
+                  },
+                  stale: {
+                    type: "boolean",
+                    description:
+                      "True when `data_lag_seconds` is past the bound the hour-named " +
+                      "routes are held to, so `/past-hour` and `/current-hour` do not " +
+                      "answer and only `/latest` does. Treat the figures as a recent " +
+                      "reading rather than a current one, and read `period_start` " +
+                      "before using them for anything time-sensitive.",
+                  },
+                  providers: {
+                    type: "array",
+                    items: { type: "string" },
+                    description:
+                      "The feed chain, primary first. `data_source.name` on an hourly document says which one actually replied.",
+                  },
+                  redundancy: {
+                    type: "string",
+                    enum: ["none", "independent"],
+                    description:
+                      "`independent` — a second feed with its own path to the meters, " +
+                      "covering the primary going down for any reason. `none` — one " +
+                      "feed, or none. There is no middle value on purpose: a feed " +
+                      "that re-publishes the primary goes down with it, so it is not " +
+                      "configured as a fallback at all rather than counted as partial " +
+                      "cover.",
                   },
                   zones: { type: "array", items: { type: "string" } },
                   ...figureProps(),

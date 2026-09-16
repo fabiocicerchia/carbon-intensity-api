@@ -24,6 +24,7 @@ export const FUEL_FACTORS_DIRECT = {
   solar: 0,
   marine: 0,
   other: 0,
+  storage: 0,
 };
 
 // The fuel-code mappings below are derived from each data source's OWN
@@ -54,6 +55,10 @@ export const ENTSOE_PSR_TO_FUEL = {
   B18: "wind",
   B19: "wind",
   B20: "other",
+  // Storage discharge. Zero here for the same reason B10 pumped storage is:
+  // whatever charged it was already counted in the mix at the time, and the
+  // matching consumption series is dropped rather than netted off.
+  B25: "storage",
 };
 
 // EIA hourly fuel-type codes -> canonical fuel. Source: US EIA Open Data,
@@ -150,6 +155,88 @@ export const ESKOM_INDEX_TO_FUEL = {
 // Weighted operational intensity (gCO2/kWh) for a canonical-fuel -> MWh mix.
 // Returns null when total generation is non-positive. Negative per-fuel values
 // (e.g. net pumped-storage consumption) are floored at 0.
+// --- Elexon BMRS (GB) ---------------------------------------------------------
+// FUELINST's transmission-level fuel mix. The INT* rows are interconnector
+// flows, not generation — they go both ways and are routinely negative — so
+// they are absent here and dropped, the same treatment ENTSO-E's
+// outBiddingZone series get.
+//
+// Caveat worth knowing when reading a GB figure sourced from Elexon: FUELINST
+// has no solar row at all. GB solar is overwhelmingly distribution-connected
+// and invisible to transmission metering, so this mix omits it and reads
+// dirtier than the truth in daylight. NESO's own feed models embedded
+// generation, which is why it stays the primary and this is only the fallback.
+export const ELEXON_FUEL_TO_FUEL = {
+  BIOMASS: "biomass",
+  CCGT: "gas",
+  OCGT: "gas",
+  COAL: "hard_coal",
+  OIL: "oil",
+  NUCLEAR: "nuclear",
+  NPSHYD: "hydro",
+  PS: "hydro",
+  WIND: "wind",
+  OTHER: "other",
+};
+
+// --- Energy-Charts (Fraunhofer ISE) ------------------------------------------
+// Matched on a normalised substring rather than an exact name, because this feed
+// labels series in prose ("Fossil brown coal / lignite") and the wording is not
+// a contract. Ordered: the first rule that matches wins, so lignite is tested
+// before the bare "coal".
+//
+// Anything unmatched is DROPPED, not counted as `other`. The response carries
+// non-generation series alongside the fuels — load, residual load, cross-border
+// trading, renewable share — and treating an unrecognised one as generation
+// would put load into the denominator and halve the intensity. Dropping an
+// unknown fuel understates a little; counting load destroys the figure.
+const ENERGY_CHARTS_SKIP = [
+  "load",
+  "cross border",
+  "cross-border",
+  "share",
+  "import",
+  "export",
+  "consumption",
+  "residual",
+  "price",
+  "renewable",
+];
+
+const ENERGY_CHARTS_RULES = [
+  ["brown coal", "lignite"],
+  ["lignite", "lignite"],
+  // Before the bare "coal": the feed publishes "Fossil coal-derived gas", which
+  // is ENTSO-E's B03 and burns nothing like hard coal — 700 against 900.
+  ["coal-derived", "other_fossil"],
+  ["hard coal", "hard_coal"],
+  ["coal", "hard_coal"],
+  ["gas", "gas"],
+  ["oil", "oil"],
+  ["nuclear", "nuclear"],
+  ["biomass", "biomass"],
+  ["waste", "waste"],
+  ["geothermal", "geothermal"],
+  ["hydro", "hydro"],
+  ["wind", "wind"],
+  ["solar", "solar"],
+  ["battery", "storage"],
+  ["storage", "storage"],
+  // "Others" is this feed's B20. Mapped rather than dropped so it lands in the
+  // denominator exactly as it does on the primary: dropping it would make the
+  // same grid read slightly dirtier through the fallback than through ENTSO-E.
+  ["other", "other"],
+];
+
+// -> our fuel key, or null for a series that is not generation.
+export function energyChartsFuel(name) {
+  const n = String(name || "").toLowerCase();
+  if (!n) return null;
+  if (ENERGY_CHARTS_SKIP.some((w) => n.includes(w))) return null;
+  for (const [needle, fuel] of ENERGY_CHARTS_RULES) if (n.includes(needle)) return fuel;
+  return null;
+}
+
 export function mixToDirectIntensity(mix) {
   let total = 0;
   let weighted = 0;

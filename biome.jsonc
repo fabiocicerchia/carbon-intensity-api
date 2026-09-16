@@ -24,6 +24,7 @@
         "noNonNullAssertion": "error",
         "useConst": "error",
         "useImportType": "error",
+        "useTemplate": "error",
         "noMagicNumbers": "error"
       },
       "suspicious": {
@@ -35,7 +36,9 @@
       },
       "correctness": {
         "noInnerDeclarations": "error",
-        "noUnusedVariables": "error"
+        "noUnusedFunctionParameters": "error",
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error"
       },
       "nursery": {
         "noFloatingPromises": "error"
@@ -54,7 +57,14 @@
     }
   },
   "files": {
-    "includes": ["**", "!**/dist", "!**/node_modules"]
+    // `data` is the pipeline's output directory, rewritten on every build and
+    // not committed here. Formatting it would put the formatter and the
+    // pipeline in a fight the pipeline wins on the next run.
+    //
+    // The hand-written site lives in `site/` and stays linted. The pipeline
+    // copies it into `data/` as part of a build, which is the only reason
+    // anything HTML-shaped ever appears under the ignored directory.
+    "includes": ["**", "!**/dist", "!**/node_modules", "!data"]
   },
   "overrides": [
     {

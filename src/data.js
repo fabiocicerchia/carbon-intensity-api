@@ -4,7 +4,7 @@
 import COUNTRIES_RAW from "./datasets/countries.json" with { type: "json" };
 import CURATED_DELTAS from "./datasets/curated-deltas.json" with { type: "json" };
 import SOURCES from "./datasets/sources.json" with { type: "json" };
-import { pointsPerHour, zonesFor } from "./live.js";
+import { pointsPerHour, providerSource, zonesFor } from "./live.js";
 
 const SOURCE = "Ember; Energy Institute (via OWID)";
 
@@ -87,6 +87,23 @@ export function resolveCode(country) {
   throw new UnknownCountry(country);
 }
 
+// Provenance for a MEASURED reading: the feed that actually replied, not the
+// country. `sources.json` is keyed by country and describes the annual
+// dataset's source — right for /yearly, wrong for an hourly figure, and it
+// showed: GB readings carried Elexon's URL under NESO's name and FR's carried
+// RTE's while the data came from ENTSO-E. A country with fallback feeds has no
+// single answer at all, which is what forced this apart.
+//
+// Shape is unchanged — the same five fields, including on v1 — so only the
+// values move, from wrong to right. A provider with no entry degrades to the
+// previous behaviour rather than to nothing.
+export function measuredSource(code, provider) {
+  const feed = providerSource(provider);
+  const country = sourceFor(code);
+  if (!feed) return { ...country, name: provider ?? country.name };
+  return { ...feed, realtime: true, status: "operational", ref: null };
+}
+
 export function sourceFor(code) {
   return SOURCES[code.toUpperCase()] || { name: null, url: null, realtime: false, status: "none", ref: null };
 }
@@ -123,7 +140,7 @@ export function lastHour(country, { measured = null, zone = null } = {}) {
     direct = Math.round(measured.direct);
     hourStart = measured.hour_start;
     hourEnd = measured.hour_end;
-    dataSource = { ...sourceFor(code), name: measured.source ?? sourceFor(code).name };
+    dataSource = measuredSource(code, measured.source);
     basis = "measured";
   } else {
     // Null rather than the last completed hour: an annual average describes no
@@ -228,8 +245,11 @@ export function currentHour(series) {
   return means.length ? means[means.length - 1] : null;
 }
 
-// Build a v2 hourly document from one entry of hourlyMeans().
-export function hourDocument(country, mean, { series, zone = null } = {}) {
+// Build a v2 hourly document from one entry of hourlyMeans(), or from an
+// estimate. An estimated document keeps the same shape so a client needs no
+// second parser — `basis` is the field that separates them, and an `estimate`
+// block says how the figure was reached and how far it reached.
+export function hourDocument(country, mean, { series = null, zone = null, estimate = null } = {}) {
   const code = resolveCode(country);
   const rec = COUNTRIES[code];
   const direct = Math.round(mean.direct);
@@ -243,10 +263,13 @@ export function hourDocument(country, mean, { series, zone = null } = {}) {
     // provider data point wide — 15 minutes for ENTSO-E — under hour-shaped names.
     period_start: mean.hour,
     period_end: new Date(startMs + MS_PER_HOUR).toISOString().replace(/\.\d{3}Z$/, "Z"),
-    resolution_sec: series.resolution_sec,
-    points: mean.points,
-    points_expected: pointsPerHour(series.resolution_sec),
-    complete: mean.complete,
+    // An estimate covers a whole hour and rests on no provider points at all,
+    // so these read 3600/0/0/false rather than borrowing the anchor's figures
+    // and implying a measurement that was never taken.
+    resolution_sec: estimate ? SECONDS_PER_HOUR : series.resolution_sec,
+    points: estimate ? 0 : mean.points,
+    points_expected: estimate ? 0 : pointsPerHour(series.resolution_sec),
+    complete: estimate ? false : mean.complete,
     direct,
     lifecycle: direct + rec.lifecycleDelta,
     ...(zone
@@ -255,8 +278,14 @@ export function hourDocument(country, mean, { series, zone = null } = {}) {
           consumption_direct: direct + rec.consumptionDelta,
           consumption_lifecycle: direct + rec.consumptionDelta + rec.lifecycleDelta,
         }),
-    basis: "measured",
-    data_source: { ...sourceFor(code), name: series.source ?? sourceFor(code).name },
+    basis: estimate ? "estimated" : "measured",
+    ...(estimate ? { estimate } : {}),
+    // An estimated figure is OURS — modelled from this API's own history — and
+    // says so rather than crediting the feed with a number it never published.
+    // `estimate.from_source` names the feed the history came from.
+    data_source: estimate
+      ? { name: ATTRIBUTION.name, url: ATTRIBUTION.url, realtime: false, status: "estimated", ref: null }
+      : measuredSource(code, series.source),
     data_year: rec.dataYear,
     methodology: METHODOLOGY,
   };

@@ -9,18 +9,34 @@ import {
   COUNTRIES,
   currentHour,
   hourDocument,
+  hourlyMeans,
   lastHour,
   listCountries,
   METHODOLOGY,
   ProviderlessZone,
-  pastHour,
   yearlyDocument,
 } from "./data.js";
-import { measuredLastHour, newestReading, ZONES, zonesFor } from "./live.js";
+import {
+  buildProfile,
+  estimateHour,
+  horizonFor,
+  loadWindow,
+  maxHoursFor,
+  newestAnchor,
+  PROFILE_DAYS,
+} from "./estimate.js";
+import { measuredLastHour, newestReading, providerFor, providersFor, redundancyFor, ZONES, zonesFor } from "./live.js";
 import { buildSpec } from "./openapi.js";
 
 function nowIso() {
   return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+// Where a day of history lives. Here rather than in history.js because writeV2
+// reads history to build an estimate, and history.js already depends on this
+// file — the other direction would close a cycle. history.js re-exports it.
+export function historyPath(code, date, zone = null) {
+  return zone ? `v2/${code}/${zone}/history/${date}` : `v2/${code}/history/${date}`;
 }
 
 // Every zone the API advertises, as [country, zone] pairs.
@@ -30,7 +46,21 @@ function knownZones() {
     .flatMap((c) => zonesFor(c).map((z) => [c, z]));
 }
 
-export async function buildSnapshot({ useLive = true, env = {}, generatedAt = null } = {}) {
+// Every series the API could hold hourly data for, as [code, zone|null].
+// Enumerated from the provider tables rather than from what a run happened to
+// measure, so a country whose provider is down is still reachable — which is
+// what lets the writers reconcile and expire the objects it left behind, and
+// what lets history retire the days of a series that lost its provider for
+// good.
+export function knownSeries() {
+  const out = [];
+  for (const code of Object.keys(COUNTRIES)) {
+    if (providerFor(code)) out.push([code, null]);
+  }
+  return [...out, ...knownZones()];
+}
+
+export async function buildSnapshot({ useLive = true, env = {}, generatedAt = null, onFailure = null } = {}) {
   const codes = Object.keys(COUNTRIES).sort();
   // The provider series is kept alongside the v1 reading rather than discarded:
   // v1 wants one point (`newestReading`), v2's hourly routes and history want
@@ -38,7 +68,7 @@ export async function buildSnapshot({ useLive = true, env = {}, generatedAt = nu
   const countrySeries = {};
   const readings = await Promise.all(
     codes.map(async (code) => {
-      const s = useLive ? await measuredLastHour(code, { env }) : null;
+      const s = useLive ? await measuredLastHour(code, { env, onFailure }) : null;
       if (s) countrySeries[code] = s;
       return lastHour(code, { measured: newestReading(s) });
     }),
@@ -58,7 +88,7 @@ export async function buildSnapshot({ useLive = true, env = {}, generatedAt = nu
   const zoneReadings = await Promise.all(
     pairs.map(async ([code, zone]) => {
       const key = `${code}/${zone}`;
-      const s = await measuredLastHour(code, { env, zone });
+      const s = await measuredLastHour(code, { env, zone, onFailure });
       try {
         const reading = lastHour(code, { measured: newestReading(s), zone });
         if (s) zoneSeries[key] = s;
@@ -107,6 +137,27 @@ const SECONDS_PER_HOUR = 3600;
 const HOURS_PER_DAY = 24;
 const DAYS_PER_WEEK = 7;
 const ANNUAL_REFRESH_SECONDS = DAYS_PER_WEEK * HOURS_PER_DAY * SECONDS_PER_HOUR;
+const MS_PER_HOUR = SECONDS_PER_HOUR * MS_PER_SECOND;
+
+// How far back /past-hour and /current-hour will reach. An hour whose period
+// ended longer ago than this is not published under either name, however
+// complete it is — they are named for particular clock hours, and an hour from
+// half a day ago is not one of them.
+//
+// Nothing is held across an outage on the strength of this: a route with no
+// hour to serve 404s on the same run. The bound governs only which freshly
+// computed hour may be published, and it is measured against the hour itself
+// rather than against the run, because a provider's ordinary publication lag
+// already puts `period_end` a few hours back.
+//
+// It doubles as the `stale` line in the catalogue, which is the same question
+// asked of a country: past this, only /latest answers.
+const HOURLY_MAX_AGE_HOURS = 6;
+export const HOURLY_MAX_AGE_SECONDS = HOURLY_MAX_AGE_HOURS * SECONDS_PER_HOUR;
+
+// The three hourly routes, in the order the catalogue reports them: most
+// specific promise first.
+const HOURLY_ROUTES = ["past-hour", "current-hour", "latest"];
 
 // Everything but the timestamp. Comparing a named list of figures would have
 // let a change of shape — a renamed or added field — sit unpublished behind the
@@ -198,7 +249,12 @@ export async function writeAll(snapshot, put, get = null) {
 // Written alongside v1, from the same snapshot. v1 above is frozen: it keeps
 // getting fresh data but its paths, fields and semantics do not move, so the two
 // trees are produced independently rather than one being derived from the other.
-export async function writeV2(snapshot, put, get = null, del = null) {
+// `reconcile` walks the series that produced nothing this run and expires what
+// they left behind. It is off for an offline build (`--no-live`), where no
+// provider was asked at all: "we did not try" and "we tried and got nothing"
+// look identical in the snapshot, and only the second is grounds for deleting
+// anything.
+export async function writeV2(snapshot, put, get = null, del = null, { reconcile = true } = {}) {
   const pretty = (o) => `${JSON.stringify(o, null, 2)}\n`;
   const stamp = (doc) => ({ generated_at: snapshot.generated_at, ...doc, attribution: ATTRIBUTION });
   const codes = Object.keys(COUNTRIES).sort();
@@ -231,45 +287,234 @@ export async function writeV2(snapshot, put, get = null, del = null) {
   // previous one is removed rather than left to look current — an annual
   // constant behind a route named for a completed hour is the dishonesty v2
   // exists to remove, and so is last week's hour.
+  //
+  // Series that produced NOTHING this run are walked too, not just the measured
+  // ones. A provider that goes dark drops its countries out of the snapshot
+  // altogether, and a loop over the snapshot alone never reaches them again: no
+  // write, no delete, and whatever they last held is served forever. That is
+  // how /v2/DE/current-hour kept answering with an hour from the previous day
+  // while /v2/DE/past-hour stayed 404 through twenty green runs.
   const bulk = [];
+  // Which hourly routes each country actually ends this run with. Recorded as
+  // the objects are written rather than asserted anywhere, because it is not a
+  // property of the country: it falls out of how far behind that country's
+  // provider is publishing, and EIA at a day behind answers on fewer routes
+  // than NESO at seventeen minutes. `realtime_available` says a provider
+  // exists; this says what came of it.
+  const answered = new Map();
+  // How far behind this run the newest hour a country has actually reaches. Two
+  // countries can both carry `latest` alone and be an hour and a week behind
+  // respectively, and a bare route list cannot tell them apart — so the number
+  // is published rather than left for a reader to infer from period_end.
+  const lag = new Map();
+  const record = (code, zone, route, doc) => {
+    if (zone) return;
+    if (!answered.has(code)) answered.set(code, new Set());
+    answered.get(code).add(route);
+    if (route !== "latest" || !doc) return;
+    const behind = Math.round((now - Date.parse(doc.period_end)) / MS_PER_SECOND);
+    if (Number.isFinite(behind)) lag.set(code, Math.max(0, behind));
+  };
   const series = snapshot.series || { countries: {}, zones: {} };
-  const targets = [
-    ...Object.entries(series.countries || {}).map(([code, s]) => [code, null, s]),
-    ...Object.entries(series.zones || {}).map(([key, s]) => [...key.split("/"), s]),
-  ];
+  const measured = new Map([
+    ...Object.entries(series.countries || {}).map(([code, s]) => [code, [code, null, s]]),
+    ...Object.entries(series.zones || {}).map(([key, s]) => [key, [...key.split("/"), s]]),
+  ]);
+  const targets = [...measured.values()];
+  if (reconcile) {
+    for (const [code, zone] of knownSeries()) {
+      const key = zone ? `${code}/${zone}` : code;
+      if (!measured.has(key)) targets.push([code, zone, null]);
+    }
+  }
+
+  // Only the fields that differ per country. `unit`, `methodology` and
+  // `attribution` are identical for all of them and go in the envelope once —
+  // repeating them per entry is precisely what made v1's latest.json 246 KB.
+  // `source` stays because it varies and because the methodology note is only
+  // meaningful next to whose data it describes.
+  const bulkEntry = (doc) => ({
+    country_code: doc.country_code,
+    period_start: doc.period_start,
+    period_end: doc.period_end,
+    direct: doc.direct,
+    lifecycle: doc.lifecycle,
+    consumption_direct: doc.consumption_direct,
+    consumption_lifecycle: doc.consumption_lifecycle,
+    points: doc.points,
+    complete: doc.complete,
+    basis: doc.basis,
+    source: doc.data_source.name,
+  });
+
+  // How old a published hour may be. The fetch window used to bound this by
+  // accident — against a three-hour window /past-hour could only ever be two
+  // hours behind — and widening that window to twelve to survive provider lag
+  // quietly loosened the bound to eleven. So it is stated here instead of
+  // inherited: an hour whose period ended longer ago than HOURLY_MAX_AGE_SECONDS
+  // is not published, however complete it is, and the same rule then covers both
+  // ways a route can go stale. It matters most while a provider is recovering —
+  // one that comes back by backfilling only old hours would otherwise republish
+  // a half-day-old hour every run, with a moving generated_at making it look
+  // current.
+  // The clock hour each route names, relative to this run.
+  const hourOf = (route) => {
+    const d = new Date(now);
+    d.setUTCMinutes(0, 0, 0);
+    if (route === "past-hour") d.setUTCHours(d.getUTCHours() - 1);
+    return d.toISOString().replace(/\.\d{3}Z$/, "Z");
+  };
+
+  // The hour a route names, taken from the provider's window if it is there.
+  // /past-hour is the hour that just closed and /current-hour the one running —
+  // those specific hours, not "the newest one we happen to have". A provider
+  // three hours behind has not published the hour that just closed, and saying
+  // so is what lets the estimator fill it and /latest carry the real reading.
+  //
+  // /past-hour additionally requires the hour to be complete: an hour is only
+  // "completed" once all of its points are in.
+  const namedMean = (route, means) => {
+    const m = means.get(hourOf(route));
+    if (!m) return null;
+    return route === "past-hour" && !m.complete ? null : m;
+  };
+
+  // Estimating is only ever reached when a route has no measured hour to serve,
+  // and it reads 28 days of history to do it — so the profile is built lazily,
+  // once per series, and not at all on a normal run where every feed answered.
+  const today = snapshot.generated_at.slice(0, 10);
+  const profiles = new Map();
+  const profileFor = async (code, zone) => {
+    const key = zone ? `${code}/${zone}` : code;
+    if (!profiles.has(key)) {
+      const samples = get
+        ? await loadWindow(
+            async (date) => {
+              const raw = await get(historyPath(code, date, zone));
+              return raw ? JSON.parse(raw) : null;
+            },
+            today,
+            PROFILE_DAYS,
+          )
+        : [];
+      profiles.set(key, { profile: buildProfile(samples), anchor: newestAnchor(samples) });
+    }
+    return profiles.get(key);
+  };
+
   for (const [code, zone, s] of targets) {
     const prefix = zone ? `v2/${code}/${zone}` : `v2/${code}`;
-    for (const [route, mean] of [
-      ["past-hour", pastHour(s)],
-      ["current-hour", currentHour(s)],
-    ]) {
+    // `latest` is deliberately NOT passed through fresh(). The two hourly routes
+    // are named for particular clock hours and mean them: when the provider has
+    // not published one, the hour is missing and they 404. `latest` is the other
+    // question — "what is the newest reading you have at all" — and for a
+    // provider that publishes a day behind by design (EIA) or several days
+    // (Eskom) it is the only answer there is. Splitting them is what lets both
+    // be honest; one route cannot be both.
+    const byHour = new Map(s ? hourlyMeans(s).map((m) => [m.hour, m]) : []);
+    const means = s
+      ? [
+          ["past-hour", namedMean("past-hour", byHour)],
+          ["current-hour", namedMean("current-hour", byHour)],
+          // Unchanged: the newest hour with any data, at any age.
+          ["latest", currentHour(s)],
+        ]
+      : [
+          ["past-hour", null],
+          ["current-hour", null],
+          ["latest", null],
+        ];
+    for (const [route, mean] of means) {
       const path = `${prefix}/${route}`;
       if (!mean) {
-        if (del) await del(path);
+        // An hour-named route with no such hour is a 404, immediately. There is
+        // no grace period and nothing is held: /past-hour and /current-hour name
+        // particular clock hours, and holding yesterday's under either of those
+        // names for a few hours is the same untruth as holding it for a day,
+        // only shorter. Whether the provider answered with a window holding no
+        // usable hour or did not answer at all makes no difference to whether
+        // the hour exists.
+        //
+        // `latest` is what carries a reading across an outage, and it carries it
+        // for as long as the outage lasts: the newest reading we have does not
+        // stop being the newest reading we have because the provider went quiet.
+        // It stops being rewritten instead, so its `generated_at` stands still
+        // and its age shows in the document rather than hiding behind a moving
+        // timestamp.
+        if (route !== "latest") {
+          // No measured hour for this route. Before publishing the absence, see
+          // whether it can be estimated: the newest hour the provider DID give
+          // us, scaled by how this grid usually moves between then and now.
+          // Bounded hard — see src/estimate.js — so a long outage still 404s
+          // rather than dressing a climatological average as a reading.
+          //
+          // The anchor comes from this run's window when there is one, because
+          // history has not been written yet at this point in the pipeline and
+          // would be an hour behind whatever the provider just handed over.
+          const { profile, anchor: stored } = await profileFor(code, zone);
+          // The newest hour the provider gave us, complete or not: a partly
+          // filled hour is a real measurement and an hour closer to the target,
+          // which shortens the extrapolation. History is the fallback, and is an
+          // hour behind whatever this run just fetched because writeHistory has
+          // not run yet.
+          const live = s ? currentHour(s) : null;
+          const anchor = live || stored;
+          // How far behind the provider actually is, measured to the hour now
+          // running rather than to this route's hour, so both routes are judged
+          // by the same distance: the backtested horizon is a floor and this
+          // lifts it (src/estimate.js). Reaching /current-hour costs exactly
+          // this many hours, and refusing to spend them is refusing the route.
+          const behind = anchor
+            ? Math.round((Date.parse(hourOf("current-hour")) - Date.parse(anchor.hour)) / MS_PER_HOUR)
+            : 0;
+          const backtested = maxHoursFor(code);
+          const maxHours = horizonFor(code, behind);
+          const est = estimateHour(hourOf(route), anchor, profile, { maxHours });
+          if (est) {
+            const { hour, direct, ...how } = est;
+            const doc = stamp(
+              hourDocument(
+                code,
+                { hour, direct },
+                {
+                  zone,
+                  estimate: {
+                    method: "diurnal-profile-anchored",
+                    profile_days: PROFILE_DAYS,
+                    from_source: s?.source ?? null,
+                    ...how,
+                    // Both numbers, always, so an estimate stretched past what the
+                    // backtest measured is visible in the document instead of only
+                    // in this file. A consumer that wants the measured error bound
+                    // keeps hours_ahead <= backtested_max_hours and drops the rest.
+                    max_hours: maxHours,
+                    backtested_max_hours: backtested,
+                  },
+                },
+              ),
+            );
+            await put(path, pretty(doc));
+            written += 1;
+            record(code, zone, route, doc);
+            if (route === "past-hour" && !zone) bulk.push(bulkEntry(doc));
+            continue;
+          }
+          if (del) await del(path);
+          continue;
+        }
+        if (s) {
+          if (del) await del(path);
+          continue;
+        }
+        const raw = get ? await get(path) : null;
+        if (raw) record(code, zone, route, JSON.parse(raw));
         continue;
       }
       const doc = stamp(hourDocument(code, mean, { series: s, zone }));
       await put(path, pretty(doc));
       written += 1;
-      if (route === "past-hour" && !zone) {
-        // Only the fields that differ per country. `unit`, `methodology` and
-        // `attribution` are identical for all of them and go in the envelope
-        // once — repeating them per entry is precisely what made v1's
-        // latest.json 246 KB. `source` stays because it varies and because the
-        // methodology note is only meaningful next to whose data it describes.
-        bulk.push({
-          country_code: doc.country_code,
-          period_start: doc.period_start,
-          period_end: doc.period_end,
-          direct: doc.direct,
-          lifecycle: doc.lifecycle,
-          consumption_direct: doc.consumption_direct,
-          consumption_lifecycle: doc.consumption_lifecycle,
-          points: doc.points,
-          complete: doc.complete,
-          source: doc.data_source.name,
-        });
-      }
+      record(code, zone, route, doc);
+      if (route === "past-hour" && !zone) bulk.push(bulkEntry(doc));
     }
   }
 
@@ -279,8 +524,29 @@ export async function writeV2(snapshot, put, get = null, del = null) {
   // the one document rather than a second copy of every code and name.
   const catalogue = listCountries().map((c) => {
     const y = yearlyDocument(c.country_code);
+    const routes = answered.get(c.country_code);
     return {
       ...c,
+      // Who is behind the hourly routes, and which of them answered this run.
+      // A reader asking "can I call /past-hour for DE" gets the answer from the
+      // catalogue instead of from a table in the docs that would be wrong the
+      // first time a provider's lag changed.
+      provider: providerFor(c.country_code),
+      // The whole chain as configured, primary first. `provider` above is the
+      // primary; `data_source.name` on an hourly document says which one
+      // actually replied, and they differ exactly when a fallback carried it.
+      providers: providersFor(c.country_code),
+      // What the chain actually protects against, not how long it is. A second
+      // feed that re-publishes the first covers its API failing and nothing
+      // else, and saying so is the difference between redundancy and the
+      // appearance of it.
+      redundancy: redundancyFor(c.country_code),
+      routes: routes ? HOURLY_ROUTES.filter((r) => routes.has(r)) : [],
+      data_lag_seconds: lag.has(c.country_code) ? lag.get(c.country_code) : null,
+      // The warning flag. Past this bound the hour-named routes stop answering,
+      // which is precisely the point where a reading is still real data but no
+      // longer a current one — EIA a day behind, Eskom several.
+      stale: (lag.get(c.country_code) ?? 0) >= HOURLY_MAX_AGE_SECONDS,
       direct: y.direct,
       lifecycle: y.lifecycle,
       consumption_direct: y.consumption_direct,

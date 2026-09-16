@@ -11,7 +11,8 @@
     "bin",
     "server.js",
     "sync.sh",
-    "!src/datasets/*.csv"
+    "!src/datasets/*.csv",
+    "site"
   ],
   "bin": {
     "carbon-intensity-pipeline": "bin/pipeline.js"
@@ -20,7 +21,8 @@
     "test": "node --test",
     "pipeline": "node bin/pipeline.js --out data",
     "pipeline:offline": "node bin/pipeline.js --out data --no-live",
-    "serve": "node server.js"
+    "serve": "node server.js",
+    "verify": "node bin/verify-providers.js"
   },
   "engines": {
     "node": ">=20"

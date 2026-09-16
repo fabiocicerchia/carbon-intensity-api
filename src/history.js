@@ -2,7 +2,7 @@
 //
 // A day is written by folding the provider series into per-hour means and
 // upserting them into that day's document. Because a fetch covers a window
-// (three hours for ENTSO-E, the whole delivery day for IESO) and not a single
+// (twelve hours for ENTSO-E, the whole delivery day for IESO) and not a single
 // instant, every run refills every hour it can see — so a dropped run heals
 // itself on the next one instead of leaving a permanent gap.
 //
@@ -12,8 +12,12 @@
 // return a long history costs a comparison rather than a churned object.
 
 import { COUNTRIES, hourlyMeans } from "./data.js";
-import { providerFor, ZONES, zonesFor } from "./live.js";
-import { sameExceptTimestamp } from "./pipeline.js";
+import { historyPath, knownSeries, sameExceptTimestamp } from "./pipeline.js";
+
+// Re-exported: the path belongs with the other key layout in pipeline.js, since
+// writeV2 reads history to build an estimate and history.js already depends on
+// pipeline.js — importing back the other way would close a cycle.
+export { historyPath };
 
 // Field offsets in "YYYY-MM-DDTHH:MM:SSZ": the two hour digits sit at 11..13.
 const ISO_HOUR_FIELD_START = 11;
@@ -34,10 +38,6 @@ export const RETENTION_DAYS = 365;
 export const PRUNE_TAIL_DAYS = 7;
 
 const FIGURES = ["direct", "lifecycle", "consumption_direct", "consumption_lifecycle"];
-
-export function historyPath(code, date, zone = null) {
-  return zone ? `v2/${code}/${zone}/history/${date}` : `v2/${code}/history/${date}`;
-}
 
 function dayOf(hourIso) {
   return hourIso.slice(0, 10);
@@ -68,6 +68,11 @@ function freshDay(code, zone, date) {
   for (const f of figuresFor(zone)) doc[f] = [];
   doc.points = [];
   doc.complete = [];
+  // Which feed supplied each hour. Two sources for the same grid disagree by
+  // tens of gCO2eq/kWh — different fuel granularity, different handling of
+  // "other" and of storage — so a mid-day failover puts a step in the series
+  // that reads as a real change in the grid unless the switch is recorded.
+  doc.source = [];
   return doc;
 }
 
@@ -75,14 +80,19 @@ function freshDay(code, zone, date) {
 // shrinks: a delayed provider backfilling an earlier hour must not truncate the
 // later ones, and "today, so far" falls out of only ever growing.
 function grow(doc, hour, zone) {
-  for (const key of [...figuresFor(zone), "points", "complete"]) {
+  for (const key of [...figuresFor(zone), "points", "complete", "source"]) {
+    // `source` is newer than the oldest retained days, so a stored document may
+    // not have it. Created on demand rather than by rewriting a year of closed
+    // days, which would churn every immutable object for a field describing a
+    // run that happened before it existed.
+    if (!doc[key]) doc[key] = [];
     while (doc[key].length <= hour) doc[key].push(null);
   }
 }
 
 // Upsert the given hourly means into one day's document. `means` may span
 // several days; only those on `date` are applied.
-export function upsertDay(existingRaw, means, { code, zone = null, date, generatedAt }) {
+export function upsertDay(existingRaw, means, { code, zone = null, date, generatedAt, source = null }) {
   const rec = COUNTRIES[code];
   const doc = existingRaw ? JSON.parse(existingRaw) : freshDay(code, zone, date);
   for (const m of means) {
@@ -100,26 +110,42 @@ export function upsertDay(existingRaw, means, { code, zone = null, date, generat
     }
     doc.points[hour] = m.points;
     doc.complete[hour] = m.complete;
+    doc.source[hour] = source;
   }
   doc.generated_at = generatedAt;
   return doc;
 }
 
-// Every series the API could hold history for, as [code, zone|null]. Iterated
-// for pruning rather than "whatever was measured this run", so a country that
-// permanently loses its provider still has its old days expire instead of
-// being orphaned in the bucket forever.
-function knownSeries() {
-  const out = [];
-  for (const code of Object.keys(COUNTRIES)) {
-    if (providerFor(code)) out.push([code, null]);
-    if (ZONES[code]) for (const zone of zonesFor(code)) out.push([code, zone]);
+// Fold one series' hourly means into day documents and store them.
+//
+// The immutability guarantee lives here, and only here: a closed day whose hours
+// are all already recorded produces an identical document, so it is not
+// rewritten, so the sync leaves it alone and its `immutable` cache header stays
+// honest. That check was written twice — once for the pipeline, once for the
+// backfill — and it only has to be got wrong in one of them for closed days to
+// start churning and the headers to become a lie.
+//
+// A dry run passes a `put` that does nothing, so there is no mode flag in here
+// deciding whether to write.
+export async function upsertDays(means, { code, zone = null, generatedAt, source = null }, { get, put }) {
+  let written = 0;
+  let unchanged = 0;
+  // A window can span several days; each becomes its own document.
+  for (const date of [...new Set(means.map((m) => dayOf(m.hour)))]) {
+    const path = historyPath(code, date, zone);
+    const before = await get(path);
+    const doc = upsertDay(before, means, { code, zone, date, generatedAt, source });
+    if (before && sameExceptTimestamp(JSON.parse(before), doc)) {
+      unchanged += 1;
+      continue;
+    }
+    await put(path, `${JSON.stringify(doc, null, 2)}\n`);
+    written += 1;
   }
-  return out;
+  return { written, unchanged };
 }
 
 export async function writeHistory(snapshot, put, get, del = null) {
-  const pretty = (o) => `${JSON.stringify(o, null, 2)}\n`;
   const generatedAt = snapshot.generated_at;
   const today = dayOf(generatedAt);
   let written = 0;
@@ -136,22 +162,15 @@ export async function writeHistory(snapshot, put, get, del = null) {
   for (const [code, zone, s] of entries) {
     const means = hourlyMeans(s);
     if (means.length === 0) continue;
-    for (const date of [...new Set(means.map((m) => dayOf(m.hour)))]) {
-      const path = historyPath(code, date, zone);
-      const before = await get(path);
-      const doc = upsertDay(before, means, { code, zone, date, generatedAt });
-      // The immutability guarantee. A closed day whose hours are all already
-      // recorded produces an identical document, so it is not rewritten, so the
-      // sync leaves it alone and its `immutable` cache header stays honest.
-      if (before && sameExceptTimestamp(JSON.parse(before), doc)) {
-        skipped += 1;
-        continue;
-      }
-      await put(path, pretty(doc));
-      written += 1;
-    }
+    const r = await upsertDays(means, { code, zone, generatedAt, source: s.source ?? null }, { get, put });
+    written += r.written;
+    skipped += r.unchanged;
   }
 
+  // Pruning walks knownSeries() — every series the API could hold days for —
+  // rather than "whatever was measured this run", so a country that permanently
+  // loses its provider still has its old days expire instead of being orphaned
+  // in the bucket forever.
   let pruned = 0;
   if (del) {
     for (let back = RETENTION_DAYS; back <= RETENTION_DAYS + PRUNE_TAIL_DAYS; back += 1) {
