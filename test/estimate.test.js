@@ -143,10 +143,15 @@ test("the horizon stretches to the provider's lag and stops at the ceiling", () 
   assert.equal(horizonFor("DE", 3), 3);
   assert.equal(horizonFor("AT", 3), 3);
 
-  // Past the ceiling nothing is bought back. A feed half a day behind cannot
-  // fill the hour running now: the anchor no longer carries the weather, and
-  // that is a fallback-feed problem rather than an arithmetic one.
-  assert.equal(horizonFor("DE", 25), ANCHOR_MAX_HOURS);
-  assert.equal(horizonFor("US", 12), ANCHOR_MAX_HOURS);
+  // A feed a full day behind is still reached: the estimate there is this
+  // grid's usual shape rather than a reading carried forward, and it is
+  // published with hours_ahead saying so. IT at 29 hours behind is the case.
+  assert.equal(horizonFor("DE", 25), 25);
+  assert.equal(horizonFor("IT", 29), 29);
+
+  // Seven days is where it stops, and no country's measurement moves it.
+  assert.equal(ANCHOR_MAX_HOURS, 7 * 24);
+  assert.equal(horizonFor("DE", 200), ANCHOR_MAX_HOURS);
+  assert.equal(horizonFor("US", 169), ANCHOR_MAX_HOURS);
   assert.equal(horizonFor("DE", NaN), 2);
 });

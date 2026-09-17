@@ -13,9 +13,9 @@
 // zero: +80 gCO2eq/kWh is meaningless on a 70 grid and trivial on a 500 one,
 // while "about a fifth higher by mid-morning" travels across both.
 //
-// WHY THE HORIZON IS SHORT, and why the cap is the whole design. A calendar
-// profile captures solar and demand, which really are diurnal. It cannot capture
-// wind, which is weather. The anchor is what carries wind — output is strongly
+// WHY THE MEASURED HORIZON IS SHORT, and what it does and does not decide. A
+// calendar profile captures solar and demand, which really are diurnal. It
+// cannot capture wind, which is weather. The anchor is what carries wind — output is strongly
 // autocorrelated over an hour or two — and that correlation decays. By half a
 // day a front has moved through, the ratio term carries no information, and the
 // estimate collapses to a climatological average: something middling for a grid
@@ -23,9 +23,13 @@
 // history that says whether it is windy right now, because right now is exactly
 // what is missing.
 //
-// So: estimation is for short gaps and redundancy is for long ones. A provider
-// down for twelve hours is a fallback-feed problem, and no amount of arithmetic
-// on past data substitutes for a second source.
+// So an estimate degrades with distance: hours out it is a reading carried
+// forward, days out it is this grid's usual shape for that hour and nothing
+// more. Both are published — up to ANCHOR_MAX_HOURS, seven days — because a
+// country whose feed is a day behind otherwise answers on no hour-named route
+// at all. Which one a document is, is in the document: `hours_ahead` against
+// `backtested_max_hours`. A long outage is still a fallback-feed problem, and
+// no arithmetic on past data substitutes for a second source.
 //
 // The cap belongs per country, because the error is dominated by the wind share
 // of the grid — a solar-and-gas grid tracks its profile far better than a
@@ -124,17 +128,28 @@ export function maxHoursFor(code) {
   return ESTIMATE_MAX_HOURS[code] ?? DEFAULT_MAX_HOURS;
 }
 
-// Where the anchor stops carrying the weather, and no measurement of a country
-// may buy more. The backtested horizons say how far an estimate stays useful;
-// this says how far it stays an estimate at all. Past it the ratio term is all
-// that is left and the figure is a climatological average — something middling
-// for a grid whose truth that day was 90 or 480 — so the route 404s and the
-// gap is a redundancy problem, as it always was.
+// How far past the anchor an estimate may be published at all, above whatever
+// any country was measured at. The backtested horizons say how far an estimate
+// stays useful; this says how far it stays published.
 //
-// Six hours because that is already the age at which an hour stops being
-// publishable under either hour-named route (HOURLY_MAX_AGE_SECONDS): a feed
-// further behind than this has no business filling the hour running right now.
-export const ANCHOR_MAX_HOURS = 6;
+// Seven days. It was six hours, on the argument that past that the anchor no
+// longer carries the weather, the ratio term is all that is left, and the figure
+// is a climatological average — something middling for a grid whose truth that
+// day was 90 or 480. That argument is still true and is NOT repealed here: an
+// estimate seven days out IS climatology, and it is deliberately published
+// anyway, because a country whose feed has been dark a day — IT on ENTSO-E,
+// 29 hours behind — otherwise serves nothing at all under either hour-named
+// route, and a middling figure a consumer can see the age of beats a 404.
+//
+// What keeps that honest is disclosure, not the bound: every estimated document
+// carries `hours_ahead`, `anchor_hour`, `max_hours` and `backtested_max_hours`,
+// so a consumer holding to the measured error bound keeps
+// `hours_ahead <= backtested_max_hours` and drops the rest. Anything past that
+// is explicitly a shape, not a reading. A feed this far behind is still a
+// redundancy problem; this only stops it being a blank one.
+const ESTIMATE_MAX_DAYS = 7;
+const HOURS_PER_DAY = 24;
+export const ANCHOR_MAX_HOURS = ESTIMATE_MAX_DAYS * HOURS_PER_DAY;
 
 // How far past the anchor this run may reach for `code`.
 //

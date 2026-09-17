@@ -121,12 +121,14 @@ carries today's weather; the ratio carries the expected shape. It is
 multiplicative because intensity is a ratio: +80 gCO2eq/kWh is meaningless on a
 70 grid and trivial on a 500 one.
 
-**It is deliberately short-range.** A calendar profile captures solar and demand,
-which are diurnal. It cannot capture wind, which is weather — the anchor is what
-carries wind, and that correlation decays within hours. Past the bound the
-estimate would be a climatological average dressed as a reading, so the route
-404s instead. A provider down for half a day is a redundancy problem, not an
-arithmetic one.
+**It degrades with distance, and says how far it reached.** A calendar profile
+captures solar and demand, which are diurnal. It cannot capture wind, which is
+weather — the anchor is what carries wind, and that correlation decays within
+hours. So an estimate an hour or two out is a reading carried forward, while one
+days out is this grid's usual shape for that hour and nothing more. Both are
+published, up to seven days; `hours_ahead` against `backtested_max_hours` is how
+a document tells you which it is. A provider down for days is still a redundancy
+problem, not an arithmetic one.
 
 How far it stays *useful* is measured per country rather than assumed, by
 backtesting the estimator against two months of real history and reading the
@@ -154,10 +156,12 @@ measured at two hours behind a feed that publishes at about three, is why: its
 `/current-hour` used to 404 on every green run while `/past-hour` and `/latest`
 answered beside it.
 
-The hard stop is six hours past the anchor, which no country's measurement can
-raise. Beyond it only the ratio term is left and the figure is a climatological
-average, so the route 404s — a feed further behind than that is a redundancy
-problem, as it always was.
+The hard stop is **seven days** past the anchor, which no country's measurement
+can raise. It was six hours, on the argument that beyond that only the ratio term
+is left and the figure is a climatological average. That is still true; it is
+published anyway, because a country whose feed has been dark a day otherwise
+answers on no hour-named route at all, and a figure whose age is visible beats a
+404. Past seven days the route does 404.
 
 Both numbers are in every estimated document: `max_hours` is the horizon actually
 applied and `backtested_max_hours` what the country was measured at. A consumer
