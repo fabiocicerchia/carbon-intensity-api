@@ -150,8 +150,11 @@ const MS_PER_HOUR = SECONDS_PER_HOUR * MS_PER_SECOND;
 // rather than against the run, because a provider's ordinary publication lag
 // already puts `period_end` a few hours back.
 //
-// It doubles as the `stale` line in the catalogue, which is the same question
-// asked of a country: past this, only /latest answers.
+// It doubles as the `stale` line in the catalogue: past this, a country's
+// hour-named routes are no longer measured. They may still answer — the
+// estimator reaches up to ANCHOR_MAX_HOURS, seven days — but `stale` is how a
+// consumer that wants a real reading tells the two apart without opening each
+// document.
 const HOURLY_MAX_AGE_HOURS = 6;
 export const HOURLY_MAX_AGE_SECONDS = HOURLY_MAX_AGE_HOURS * SECONDS_PER_HOUR;
 
