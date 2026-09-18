@@ -1,0 +1,22 @@
+# Backstage catalog entry, read by paved's scorecard plugin.
+#
+# Every check paved scores is derived from this file alone — no cluster
+# access, no CI credentials. What is absent here is absent from the score.
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: carbon-intensity-api
+  description: >-
+      Last-hour grid carbon intensity (gCO2eq/kWh) for every country with published electricity data — 213
+      in total — as a static JSON API.
+  annotations:
+    github.com/project-slug: fabiocicerchia/carbon-intensity-api
+    backstage.io/source-location: url:https://github.com/fabiocicerchia/carbon-intensity-api/
+  links:
+    - url: https://github.com/fabiocicerchia/carbon-intensity-api
+      title: Source
+spec:
+  type: library
+  lifecycle: production
+  owner: group:default/kodebeat
+  system: oss-tools
