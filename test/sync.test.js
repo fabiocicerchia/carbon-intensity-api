@@ -20,3 +20,7 @@ test("the mutable pass compares content, the closed-day pass compares size", () 
   assert.ok(!mutable.includes("--size-only"), "mutable pass must not skip same-size changes");
   assert.ok(closed.includes("--size-only"), "closed-day pass re-uploads the whole history without --size-only");
 });
+
+test("closed days the pipeline rewrote are uploaded even at the same size", () => {
+  assert.match(readFileSync(new URL("../sync.sh", import.meta.url), "utf8"), /-newer "\$MARK"[^\n]*\n\s*aws s3 cp/);
+});
