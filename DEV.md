@@ -517,9 +517,8 @@ is the only place it can go, and it runs before the bucket is read.
 v2's paths have no shared resource prefix to match on: `/v2/IT/past-hour` and
 `/v2/FR/history/…` have only `/v2/` in common, and narrowing to
 `^/v2/[A-Z]{2}/` needs a regex operator the cheap plans do not have. So the rule
-covers both version prefixes whole and everything shares one counter — which is
-why the threshold has to leave room for a client filling a history window on
-first boot to finish inside one interval rather than trickling.
+covers both version prefixes whole and everything shares one counter, so a
+client filling a history window on first boot has to pace itself under it.
 
 Whatever the edge returns on a block will not be JSON, and on a plan without
 custom response bodies it cannot be made so. Clients must check the status
