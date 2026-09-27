@@ -364,6 +364,10 @@ counter. Space requests at least 10s apart, including when filling a history
 window on first boot, and prefer `/v2/countries.json` and `/v2/past-hour.json`
 over looping per country. See [`DEV.md`](./DEV.md).
 
+Cross-origin `GET` is allowed from any origin, but the edge's `429` carries no
+CORS header: in a browser, `fetch` rejects with a network error instead of
+returning the status, so back off on that error too.
+
 **Check the status code before parsing the body as JSON.** Neither error a
 client will actually hit is JSON: a `429` is `text/plain` and a `404` is the
 edge's own HTML page. Both are the edge's responses, not this API's, and on the
