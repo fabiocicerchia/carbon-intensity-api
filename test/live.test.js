@@ -350,6 +350,15 @@ test("parseEia: one point per period, hourly, ascending", () => {
   approx(s.points[0].direct, 900); // the 12:00 row: 50000 MW of coal alone
 });
 
+test("parseEia: a response cut at the row limit drops its partial oldest period", () => {
+  const rows = EIA_JSON.response.data;
+  const s = live.parseEia({ response: { data: rows } }, rows.length);
+  assert.deepEqual(
+    s.points.map((p) => p.start),
+    ["2026-08-08T13:00:00Z"],
+  );
+});
+
 test("parseIeso: every reporting hour is a point", () => {
   const s = live.parseIeso(
     ieso("2026-08-15", [
