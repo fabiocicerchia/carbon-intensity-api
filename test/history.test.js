@@ -647,14 +647,14 @@ test("a feed that is up to date keeps the backtested horizon", async () => {
 test("estimates stop where the anchor stops carrying the weather", async () => {
   const s = store();
   seedHistory(s.files, "IT", "2026-08-31");
-  // The same grid, but the provider is a full day behind. The anchor tells us
-  // nothing about the wind now, so both hour-named routes 404 rather than
-  // publishing a climatological average dressed as a reading.
-  await writeV2(snapshotOf({ IT: completeHour("2026-08-30T11:00:00Z") }, "2026-08-31T12:10:00Z"), s.put, s.get, s.del);
+  // The same grid, but the provider is eight days behind: past the seven-day
+  // hard stop, so both hour-named routes 404. (A day behind used to 404 here only
+  // because the anchor was a Sunday, whose bucket was too thin to estimate from.)
+  await writeV2(snapshotOf({ IT: completeHour("2026-08-23T11:00:00Z") }, "2026-08-31T12:10:00Z"), s.put, s.get, s.del);
   assert.equal("v2/IT/past-hour" in s.files, false);
   assert.equal("v2/IT/current-hour" in s.files, false);
-  // And /latest still carries the real day-old reading.
-  assert.equal(JSON.parse(s.files["v2/IT/latest"]).period_start, "2026-08-30T11:00:00Z");
+  // And /latest still carries the real, old reading.
+  assert.equal(JSON.parse(s.files["v2/IT/latest"]).period_start, "2026-08-23T11:00:00Z");
 });
 
 test("no history means no estimate, so this ships inert", async () => {

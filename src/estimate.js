@@ -205,8 +205,11 @@ export function buildProfile(samples) {
   for (const s of samples) {
     if (s.direct == null || s.complete !== true) continue;
     const key = bucket(s.hour);
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(s.direct);
+    // Saturday and Sunday also pool, for when either alone is too thin to use.
+    for (const k of key.startsWith("week:") ? [key] : [key, `weekend:${key.split(":")[1]}`]) {
+      if (!buckets.has(k)) buckets.set(k, []);
+      buckets.get(k).push(s.direct);
+    }
     if (s.direct < min) min = s.direct;
     if (s.direct > max) max = s.direct;
   }
@@ -235,8 +238,15 @@ export function estimateHour(targetIso, anchor, profile, { maxHours = DEFAULT_MA
   const ahead = Math.round((Date.parse(targetIso) - Date.parse(anchor.hour)) / MS_PER_HOUR);
   if (!Number.isFinite(ahead) || ahead <= 0 || ahead > maxHours) return null;
 
-  const kTarget = bucket(targetIso);
-  const kAnchor = bucket(anchor.hour);
+  // A window holds only ~4 finished Saturdays or Sundays, and one null hour drops
+  // a bucket under the minimum; fall back to both days pooled rather than 404.
+  const pick = (iso) => {
+    const k = bucket(iso);
+    const thin = (profile.counts.get(k) ?? 0) < MIN_PROFILE_SAMPLES;
+    return thin && !k.startsWith("week:") ? `weekend:${k.split(":")[1]}` : k;
+  };
+  const kTarget = pick(targetIso);
+  const kAnchor = pick(anchor.hour);
   const pTarget = profile.medians.get(kTarget);
   const pAnchor = profile.medians.get(kAnchor);
   const nTarget = profile.counts.get(kTarget) ?? 0;

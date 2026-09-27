@@ -47,6 +47,16 @@ test("the default window has enough Sundays to estimate a Sunday hour", () => {
   assert.equal(estimateHour("2026-08-30T12:00:00Z", anchor, p, { maxHours: 4 }).direct, 300);
 });
 
+test("a thin Sunday falls back to Saturday and Sunday pooled", () => {
+  // Four weeks: 4 Sundays, under the minimum, but 8 weekend days pooled.
+  const p = buildProfile(weeks(diurnal, { days: 28 }));
+  assert.ok(p.counts.get("sun:12") < MIN_PROFILE_SAMPLES);
+  const anchor = { hour: "2026-08-30T09:00:00Z", direct: 600, complete: true };
+  const e = estimateHour("2026-08-30T12:00:00Z", anchor, p, { maxHours: 4 });
+  assert.equal(e.direct, 300);
+  assert.equal(e.profile_samples, 8);
+});
+
 test("a partial hour never enters the profile", () => {
   // Same data, every hour incomplete: a mean over fewer points would drag the
   // profile toward whichever part of the hour the provider happened to publish.
