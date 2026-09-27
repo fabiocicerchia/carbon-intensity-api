@@ -357,12 +357,16 @@ const stale = (Date.now() - Date.parse(r.generated_at)) > 3900e3
   || r.basis !== "measured";
 ```
 
-Rate-limited to **10 requests per 10s per IP**, returning `429` beyond that. It
-is a CDN/WAF rule — there is no application code to put a limiter in — and 10s
-is the longest counting period the hosted deployment's plan allows. That plan
-also allows exactly **one** rule, so v1 and v2 share a counter; the threshold is
-10 rather than 1 so that a client filling a history window on first boot
-finishes inside a single interval. See [`DEV.md`](./DEV.md).
+Rate-limited to **1 request per 10s per IP**, returning `429` beyond that. It
+is a CDN/WAF rule — there is no application code to put a limiter in — and the
+hosted deployment's plan allows exactly **one** rule, so v1 and v2 share a
+counter. Space requests at least 10s apart, including when filling a history
+window on first boot, and prefer `/v2/countries.json` and `/v2/past-hour.json`
+over looping per country. See [`DEV.md`](./DEV.md).
+
+Cross-origin `GET` is allowed from any origin, but the edge's `429` carries no
+CORS header: in a browser, `fetch` rejects with a network error instead of
+returning the status, so back off on that error too.
 
 **Check the status code before parsing the body as JSON.** Neither error a
 client will actually hit is JSON: a `429` is `text/plain` and a `404` is the

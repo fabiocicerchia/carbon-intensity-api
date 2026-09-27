@@ -240,7 +240,7 @@ const NOT_JSON = {
 
 const RATE_LIMITED = {
   description:
-    "Rate limited: 10 requests per 10 seconds per IP. The body is `text/plain` " +
+    "Rate limited: 1 request per 10 seconds per IP. The body is `text/plain` " +
     "(`error code: 1015`), not JSON — Cloudflare's own block page, which the " +
     "free plan cannot customise. Check the status before parsing.",
   content: { "text/plain": { schema: { type: "string" } } },
