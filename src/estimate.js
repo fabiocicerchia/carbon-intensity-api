@@ -5,7 +5,7 @@
 //
 //   estimate(t) = measured(t0) × profile(t) / profile(t0)
 //
-// `profile(h)` is the median intensity at hour `h` over the last four weeks for
+// `profile(h)` is the median intensity at hour `h` over the last five weeks for
 // the same day type. The anchor carries today's weather; the ratio carries the
 // expected diurnal shape.
 //
@@ -41,9 +41,9 @@
 // measured number sets the floor and the lag lifts it to ANCHOR_MAX_HOURS —
 // horizonFor() below, and the reason /v2/DE/current-hour exists at all.
 
-// Four weeks. Enough for ~20 samples per weekday hour once Mon-Fri are pooled,
-// which per-weekday buckets would not reach.
-export const PROFILE_DAYS = 28;
+// Five weeks: ~25 samples per weekday hour with Mon-Fri pooled, and 5 per Sat or
+// Sun hour. Four weeks gave those 4, under the minimum, so weekends never estimated.
+export const PROFILE_DAYS = 35;
 
 // Below this many samples for either the target hour or the anchor hour, the
 // ratio is noise and nothing is published.
@@ -214,7 +214,7 @@ export function buildProfile(samples) {
   const counts = new Map();
   for (const [key, values] of buckets) {
     values.sort((a, b) => a - b);
-    // Median, not mean: one provider glitch in four weeks should not move it.
+    // Median, not mean: one provider glitch in five weeks should not move it.
     medians.set(key, median(values));
     counts.set(key, values.length);
   }
@@ -247,7 +247,7 @@ export function estimateHour(targetIso, anchor, profile, { maxHours = DEFAULT_MA
 
   // Clamped to what this grid has actually done in the window. The ratio can run
   // away when the anchor hour's profile sits near zero, and a figure outside
-  // everything four weeks of the real grid did is not an estimate of it.
+  // everything five weeks of the real grid did is not an estimate of it.
   const raw = anchor.direct * (pTarget / pAnchor);
   const direct = Math.min(Math.max(raw, profile.min), profile.max);
 
