@@ -1073,10 +1073,10 @@ export async function fetchEia(token, respondent = "US48", window = null) {
     "sort[0][column]": "period",
     "sort[0][direction]": "desc",
     // Measured: 200 rows is about 13 hours, since EIA gives each fuel type its
-    // own row. The ceiling is ~330 hours, so a backfill chunk of a week fits
-    // with room; a chunk that came back short of `days * 24` minus the feed's
-    // lag would be hitting it.
-    length: window ? "5000" : "200",
+    // own row. EIA publishes about a day at once, so 200 rows lost the older 11
+    // hours of every batch; 1000 is ~65 hours. The ceiling is ~330 hours, so a
+    // backfill chunk of a week fits; one short of `days * 24` minus lag hits it.
+    length: window ? "5000" : "1000",
   };
   if (window) {
     // Hour granularity, which is what `frequency: hourly` indexes on.
