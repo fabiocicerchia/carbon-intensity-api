@@ -503,14 +503,18 @@ export function parseEntsoe(xml) {
 }
 
 // --- EIA ----------------------------------------------------------------------
-export function parseEia(payload) {
+export function parseEia(payload, limit = Infinity) {
   const obj = typeof payload === "string" ? JSON.parse(payload) : payload;
   const rows = obj?.response?.data || [];
   if (rows.length === 0) throw noData(new Error("EIA response contained no data rows"));
+  // A full response is cut mid-period, and fuels sort alphabetically, so the oldest
+  // period is missing SUN/WAT/WND and reads far too high. Drop it.
+  const cut = rows.length >= limit ? rows.reduce((a, r) => (r.period < a ? r.period : a), rows[0].period) : null;
   // fetchEia asks for 200 rows sorted by period; every period in them is a
   // point, not just the newest.
   const byPeriod = new Map();
   for (const r of rows) {
+    if (r.period === cut) continue;
     const fuel = EIA_FUEL_TO_FUEL[r.fueltype] || "other";
     const val = parseFloat(r.value);
     if (Number.isNaN(val)) continue;
@@ -1073,10 +1077,10 @@ export async function fetchEia(token, respondent = "US48", window = null) {
     "sort[0][column]": "period",
     "sort[0][direction]": "desc",
     // Measured: 200 rows is about 13 hours, since EIA gives each fuel type its
-    // own row. The ceiling is ~330 hours, so a backfill chunk of a week fits
-    // with room; a chunk that came back short of `days * 24` minus the feed's
-    // lag would be hitting it.
-    length: window ? "5000" : "200",
+    // own row. EIA publishes about a day at once, so 200 rows lost the older 11
+    // hours of every batch; 1000 is ~65 hours. The ceiling is ~330 hours, so a
+    // backfill chunk of a week fits; one short of `days * 24` minus lag hits it.
+    length: window ? "5000" : "1000",
   };
   if (window) {
     // Hour granularity, which is what `frequency: hourly` indexes on.
@@ -1085,7 +1089,7 @@ export async function fetchEia(token, respondent = "US48", window = null) {
     params.end = hour(window.end);
   }
   url.search = new URLSearchParams(params).toString();
-  return parseEia(await get(url));
+  return parseEia(await get(url), Number(params.length));
 }
 
 export async function fetchUk() {
