@@ -16,6 +16,9 @@ set -eu
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 OUT_DIR="${OUT_DIR:-data}"
 
+# Anything the pipeline rewrites is newer than this; it skips unchanged files.
+MARK=$(mktemp)
+trap 'rm -f "$MARK"' EXIT
 node "$SCRIPT_DIR/bin/pipeline.js" --out "$OUT_DIR"
 
 # Three passes, because a closed history day, everything else, and the site
@@ -63,6 +66,14 @@ aws s3 sync "$OUT_DIR" "s3://$S3_BUCKET" --endpoint-url "$S3_ENDPOINT" --delete 
   --exclude "*" --include "*/history/*" --exclude "*/history/$TODAY" $SITE \
   --content-type application/json --only-show-errors \
   --cache-control "public, max-age=31536000, s-maxage=31536000, immutable"
+
+# --size-only misses a late revision of the same length (EIA revises a day after
+# it closes), so upload the closed days the pipeline rewrote this run.
+find "$OUT_DIR" -path "*/history/*" -type f ! -name "$TODAY" -newer "$MARK" | while read -r f; do
+  aws s3 cp "$f" "s3://$S3_BUCKET/${f#"$OUT_DIR"/}" --endpoint-url "$S3_ENDPOINT" \
+    --content-type application/json --only-show-errors \
+    --cache-control "public, max-age=31536000, s-maxage=31536000, immutable"
+done
 
 # Pass 3 — the site. Three objects, unchanged between most runs, re-uploaded
 # every time because that costs less than working out whether they moved.
