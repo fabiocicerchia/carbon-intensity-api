@@ -247,7 +247,7 @@ hourly Action; nothing runs at request time.
   hours, and most feeds publish an hour or more behind, so the named hour is
   often one the provider has not sent. `src/estimate.js` fills it: take the
   newest hour the feed did publish and scale it by the median shape of the last
-  28 days at that hour and day type (weekdays pooled, Sat and Sun apart).
+  35 days at that hour and day type (weekdays pooled, Sat and Sun apart).
   Multiplicative, because intensity is a ratio — +80 gCO2eq/kWh is meaningless on
   a 70 grid and trivial on a 500 one.
 
@@ -314,13 +314,13 @@ hourly Action; nothing runs at request time.
   for such a grid is lifecycle, which this method does not produce. **AU** and
   **ZA** cannot accumulate a profile from backfill, because OpenNEM and Eskom
   expose only their own short spans (7 and 4 days); theirs has to build up from
-  the hourly pipeline over four weeks.
+  the hourly pipeline over five weeks.
 
   Three things it never does: estimate `/latest`, which means the newest *real*
   reading; write an estimate into `history/`, which is what the profile is built
   from — estimates training on estimates is the one failure that compounds
   quietly; or publish without enough support, so a fresh deployment estimates
-  nothing until four weeks have accumulated. It ships inert.
+  nothing until five weeks have accumulated. It ships inert.
 - **Backfilling history:** `bin/backfill-history.js` in the deployment repo
   fetches real past hours and writes them as history documents, so the estimator
   has a profile and `bin/backtest-estimates.js` has something to measure. Both

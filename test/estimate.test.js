@@ -9,6 +9,7 @@ import {
   loadWindow,
   MIN_PROFILE_SAMPLES,
   newestAnchor,
+  PROFILE_DAYS,
 } from "../src/estimate.js";
 
 // Four weeks of a grid with a clean diurnal shape: cheap at midday when solar
@@ -37,6 +38,13 @@ test("the profile pools weekdays and keeps Saturday and Sunday apart", () => {
   assert.ok(p.counts.get("week:12") >= 15);
   assert.equal(p.min, 100);
   assert.equal(p.max, 400);
+});
+
+test("the default window has enough Sundays to estimate a Sunday hour", () => {
+  const p = buildProfile(weeks(diurnal, { days: PROFILE_DAYS }));
+  const anchor = { hour: "2026-08-30T09:00:00Z", direct: 600, complete: true }; // a Sunday
+  assert.ok(p.counts.get("sun:12") >= MIN_PROFILE_SAMPLES);
+  assert.equal(estimateHour("2026-08-30T12:00:00Z", anchor, p, { maxHours: 4 }).direct, 300);
 });
 
 test("a partial hour never enters the profile", () => {

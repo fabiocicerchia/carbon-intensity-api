@@ -105,7 +105,7 @@ skipped, and says so:
     "method": "diurnal-profile-anchored",
     "anchor_hour": "2026-08-31T09:00:00Z",
     "hours_ahead": 2,
-    "profile_days": 28,
+    "profile_days": 35,
     "profile_samples": 20,
     "max_hours": 2,
     "backtested_max_hours": 6,
@@ -116,7 +116,7 @@ skipped, and says so:
 
 The method is one line: take the newest hour the feed *did* publish, and scale it
 by how this grid usually moves between that hour and the target — the median at
-each hour over four weeks, weekdays pooled, Saturday and Sunday apart. The anchor
+each hour over five weeks, weekdays pooled, Saturday and Sunday apart. The anchor
 carries today's weather; the ratio carries the expected shape. It is
 multiplicative because intensity is a ratio: +80 gCO2eq/kWh is meaningless on a
 70 grid and trivial on a 500 one.
@@ -171,7 +171,7 @@ that wants only estimates inside the measured error bound keeps the ones where
 Three things it never does: estimate `/latest`, which means the newest *real*
 reading; write an estimate into `/history`, which is the data the profile is
 built from; or publish at all without enough history to support the shape — a
-fresh deployment estimates nothing until four weeks have accumulated.
+fresh deployment estimates nothing until five weeks have accumulated.
 
 `basis` is the field to check. `/v2/past-hour.json` carries it per country too.
 

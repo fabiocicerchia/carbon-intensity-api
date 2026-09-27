@@ -383,7 +383,7 @@ export async function writeV2(snapshot, put, get = null, del = null, { reconcile
   };
 
   // Estimating is only ever reached when a route has no measured hour to serve,
-  // and it reads 28 days of history to do it — so the profile is built lazily,
+  // and it reads 35 days of history to do it — so the profile is built lazily,
   // once per series, and not at all on a normal run where every feed answered.
   const today = snapshot.generated_at.slice(0, 10);
   const profiles = new Map();
