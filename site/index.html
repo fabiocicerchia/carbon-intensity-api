@@ -337,8 +337,10 @@
   <p class="muted">
     <strong>Rate limit:</strong> <strong>1 request per 10 seconds per IP</strong>,
     answered with <code>429</code> beyond that — and the body of a <code>429</code>
-    is not JSON, so check the status code before parsing. If you want several
-    countries at once, <code>/v2/countries.json</code> and
+    is not JSON, so check the status code before parsing. From another origin a
+    browser cannot see that status at all: the <code>429</code> carries no CORS
+    header, so <code>fetch</code> rejects with a network error — back off on that
+    too. If you want several countries at once, <code>/v2/countries.json</code> and
     <code>/v2/past-hour.json</code> each return the lot in a single request,
     which is both faster and kinder than looping over the per-country routes.
     <br /><em class="mark">And in the spirit of the thing: every request carries
@@ -394,7 +396,9 @@
       let started = false;
       const load = async () => {
       try {
-        const res = await fetch("/v2/countries.json");
+        // The 1 req/10s limit counts this page's own fetch, so wait out a 429 once.
+        let res = await fetch("/v2/countries.json");
+        if (res.status === 429) res = await new Promise((ok) => setTimeout(() => ok(fetch("/v2/countries.json")), 11000));
         if (!res.ok) throw new Error(res.status);
         const { count, countries } = await res.json();
         const zoned = countries.filter((c) => c.zones?.length);

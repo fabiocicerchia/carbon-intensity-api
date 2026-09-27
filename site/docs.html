@@ -233,7 +233,10 @@ async function main() {
   const out = document.getElementById("out");
   let spec;
   try {
-    const res = await fetch("/v2/openapi.json", { headers: { accept: "application/json" } });
+    const get = () => fetch("/v2/openapi.json", { headers: { accept: "application/json" } });
+    // The 1 req/10s limit counts this page's own fetch, so wait out a 429 once.
+    let res = await get();
+    if (res.status === 429) res = await new Promise((ok) => setTimeout(() => ok(get()), 11000));
     if (!res.ok) throw new Error(`openapi.json returned ${res.status}`);
     spec = await res.json();
   } catch (e) {
