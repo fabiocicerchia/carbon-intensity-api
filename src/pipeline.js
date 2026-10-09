@@ -461,7 +461,16 @@ export async function writeV2(snapshot, put, get = null, del = null, { reconcile
           // hour behind whatever this run just fetched because writeHistory has
           // not run yet.
           const live = s ? currentHour(s) : null;
-          const anchor = live || stored;
+          let anchor = live || stored;
+          // An anchor must precede the hour it estimates. /past-hour reaches here
+          // when its own hour is only partly in (ENTSO-E at 3 of 4 points), and
+          // that partial hour is then also the newest — an estimate zero hours
+          // ahead is refused, so DE's /past-hour 404'd every run. Step back to
+          // the newest hour before the target instead.
+          const target = hourOf(route);
+          if (anchor && anchor.hour >= target) {
+            anchor = [...byHour.values()].filter((m) => m.hour < target).at(-1) ?? null;
+          }
           // How far behind the provider actually is, measured to the hour now
           // running rather than to this route's hour, so both routes are judged
           // by the same distance: the backtested horizon is a floor and this
@@ -472,7 +481,7 @@ export async function writeV2(snapshot, put, get = null, del = null, { reconcile
             : 0;
           const backtested = maxHoursFor(code);
           const maxHours = horizonFor(code, behind);
-          const est = estimateHour(hourOf(route), anchor, profile, { maxHours });
+          const est = estimateHour(target, anchor, profile, { maxHours });
           if (est) {
             const { hour, direct, ...how } = est;
             const doc = stamp(
