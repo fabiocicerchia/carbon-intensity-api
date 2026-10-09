@@ -568,6 +568,29 @@ test("a lagging provider gets its named hours estimated, flagged as such", async
   assert.equal(bulk.basis, "estimated");
 });
 
+// ENTSO-E at 06:14 has the 05:00 hour three quarters in: too partial for a
+// measured /past-hour, and also the newest hour — so it cannot anchor its own
+// estimate. The anchor steps back to 08:00 here instead of the route 404ing.
+test("a partly published past hour is estimated from the hour before it", async () => {
+  const s = store();
+  seedHistory(s.files, "US", "2026-08-31");
+  const at = (iso, m) => new Date(Date.parse(iso) + m * 60000).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const series = {
+    ...quarterly([
+      ...[0, 15, 30, 45].map((m) => pt(at("2026-08-31T08:00:00Z", m), 400)),
+      ...[0, 15, 30].map((m) => pt(at("2026-08-31T09:00:00Z", m), 400)),
+    ]),
+    source: "EIA",
+  };
+  await writeV2(snapshotOf({ US: series }, "2026-08-31T10:10:00Z"), s.put, s.get, s.del);
+
+  const past = JSON.parse(s.files["v2/US/past-hour"]);
+  assert.equal(past.period_start, "2026-08-31T09:00:00Z");
+  assert.equal(past.basis, "estimated");
+  assert.equal(past.estimate.anchor_hour, "2026-08-31T08:00:00Z");
+  assert.equal(past.estimate.hours_ahead, 1);
+});
+
 // The backtested horizon is a floor, not a veto on the provider's lag. Identical
 // setup to the test above, on Austria — absent from ESTIMATE_MAX_HOURS because it
 // was measured and rejected, so it carries the one-hour default. Its feed is
