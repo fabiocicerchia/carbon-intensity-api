@@ -397,8 +397,12 @@
       const load = async () => {
       try {
         // The 1 req/10s limit counts this page's own fetch, so wait out a 429 once.
+        const TOO_MANY_REQUESTS = 429;
+        const RETRY_AFTER_MS = 11000;
         let res = await fetch("/v2/countries.json");
-        if (res.status === 429) res = await new Promise((ok) => setTimeout(() => ok(fetch("/v2/countries.json")), 11000));
+        if (res.status === TOO_MANY_REQUESTS) {
+          res = await new Promise((ok) => setTimeout(() => ok(fetch("/v2/countries.json")), RETRY_AFTER_MS));
+        }
         if (!res.ok) throw new Error(res.status);
         const { count, countries } = await res.json();
         const zoned = countries.filter((c) => c.zones?.length);
