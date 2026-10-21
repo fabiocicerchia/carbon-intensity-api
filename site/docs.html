@@ -235,8 +235,10 @@ async function main() {
   try {
     const get = () => fetch("/v2/openapi.json", { headers: { accept: "application/json" } });
     // The 1 req/10s limit counts this page's own fetch, so wait out a 429 once.
+    const TOO_MANY_REQUESTS = 429;
+    const RETRY_AFTER_MS = 11000;
     let res = await get();
-    if (res.status === 429) res = await new Promise((ok) => setTimeout(() => ok(get()), 11000));
+    if (res.status === TOO_MANY_REQUESTS) res = await new Promise((ok) => setTimeout(() => ok(get()), RETRY_AFTER_MS));
     if (!res.ok) throw new Error(`openapi.json returned ${res.status}`);
     spec = await res.json();
   } catch (e) {
