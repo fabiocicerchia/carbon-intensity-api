@@ -11,10 +11,19 @@
 
 import PKG from "../package.json" with { type: "json" };
 import { COUNTRIES } from "./data.js";
-import { ZONES, zonesFor } from "./live.js";
+import { PROVIDER_SOURCES, ZONES, providersFor, zonesFor } from "./live.js";
 
 const SERVER = "https://ci-api.fabiocicerchia.it";
 const SECONDS_PER_HOUR = 3600;
+const HOURS_PER_DAY = 24;
+
+// Codes as documents carry them: ISO 3166-1 alpha-2 for a country, two to four upper-case
+// letters and digits for a zone (NO1, SICI, CISO). Patterns, so a document can be checked
+// without the full enums the path parameters carry; the test holds them to the data.
+const COUNTRY_CODE = { type: "string", pattern: "^[A-Z]{2}$" };
+const ZONE_CODE = { type: "string", pattern: "^[A-Z0-9]{2,4}$" };
+// The feeds, by the key `provider`, `providers` and `estimate.from_source` carry.
+const PROVIDER = { type: "string", enum: Object.keys(PROVIDER_SOURCES).sort() };
 
 const ATTRIBUTION_SCHEMA = {
   type: "object",
@@ -66,8 +75,8 @@ const HOUR_READING = {
     "provider data point wide.",
   properties: {
     country: { type: "string" },
-    country_code: { type: "string" },
-    zone: { type: "string", description: "The zone code, or the country code for a country reading." },
+    country_code: COUNTRY_CODE,
+    zone: { ...ZONE_CODE, description: "The zone code, or the country code for a country reading." },
     unit: { type: "string", enum: ["gCO2eq/kWh"] },
     period_start: { type: "string", format: "date-time" },
     period_end: { type: "string", format: "date-time" },
@@ -149,7 +158,7 @@ const HOUR_READING = {
           type: "integer",
           description: "Same-hour, same-day-type observations behind the shape used.",
         },
-        from_source: { type: ["string", "null"] },
+        from_source: { ...PROVIDER, nullable: true },
       },
     },
     generated_at: { type: "string", format: "date-time" },
@@ -169,32 +178,36 @@ const HISTORY_DAY = {
     "document is truncated at the last hour seen; a closed day has 24 entries " +
     "and never changes again.",
   properties: {
-    country_code: { type: "string" },
-    zone: { type: "string" },
+    country_code: COUNTRY_CODE,
+    zone: ZONE_CODE,
     unit: { type: "string", enum: ["gCO2eq/kWh"] },
     basis: { type: "string", enum: ["measured"] },
     date: { type: "string", format: "date" },
     start: { type: "string", format: "date-time", description: "Always midnight UTC." },
     step_sec: { type: "integer", enum: [SECONDS_PER_HOUR] },
-    direct: { type: "array", items: { type: "integer", nullable: true } },
-    lifecycle: { type: "array", items: { type: "integer", nullable: true } },
+    direct: { type: "array", maxItems: HOURS_PER_DAY, items: { type: "integer", nullable: true } },
+    lifecycle: { type: "array", maxItems: HOURS_PER_DAY, items: { type: "integer", nullable: true } },
     consumption_direct: {
       type: "array",
+      maxItems: HOURS_PER_DAY,
       items: { type: "integer", nullable: true },
       description: "Countries only; absent on zone documents.",
     },
     consumption_lifecycle: {
       type: "array",
+      maxItems: HOURS_PER_DAY,
       items: { type: "integer", nullable: true },
       description: "Countries only; absent on zone documents.",
     },
     points: {
       type: "array",
+      maxItems: HOURS_PER_DAY,
       items: { type: "integer", nullable: true },
       description: "How many provider points each hour's mean covers.",
     },
     complete: {
       type: "array",
+      maxItems: HOURS_PER_DAY,
       items: { type: "boolean", nullable: true },
       description:
         "Decided per hour when the hour is written, against that hour's own " +
@@ -213,7 +226,7 @@ const YEARLY_READING = {
   description: "The annual average. Every country has one, measured or not.",
   properties: {
     country: { type: "string" },
-    country_code: { type: "string" },
+    country_code: COUNTRY_CODE,
     unit: { type: "string", enum: ["gCO2eq/kWh"] },
     basis: { type: "string", enum: ["annual-average"] },
     data_year: { type: "integer" },
@@ -273,6 +286,8 @@ function op({ summary, description, tags, params, ref, okText }) {
 export function buildSpec({ version = PKG.version } = {}) {
   const codes = Object.keys(COUNTRIES).sort();
   const allZones = [...new Set(Object.keys(ZONES).flatMap((c) => zonesFor(c)))].sort();
+  const maxZones = Math.max(...Object.keys(ZONES).map((c) => zonesFor(c).length));
+  const maxChain = Math.max(...codes.map((c) => providersFor(c).length));
 
   return {
     openapi: "3.0.3",
@@ -299,6 +314,9 @@ export function buildSpec({ version = PKG.version } = {}) {
       contact: { name: "Source", url: "https://github.com/fabiocicerchia/carbon-intensity-api" },
     },
     servers: [{ url: SERVER }],
+    // Every route is an unauthenticated GET of a public object. Said outright, so a reader
+    // (or a scanner) sees "no auth, on purpose" rather than "auth forgotten".
+    security: [],
     tags: [
       { name: "country", description: "One country." },
       {
@@ -457,12 +475,13 @@ export function buildSpec({ version = PKG.version } = {}) {
             attribution: ATTRIBUTION_SCHEMA,
             countries: {
               type: "array",
+              maxItems: codes.length,
               items: {
                 type: "object",
                 properties: {
-                  country_code: { type: "string" },
+                  country_code: COUNTRY_CODE,
                   country: { type: "string" },
-                  zone: { type: "string" },
+                  zone: ZONE_CODE,
                   source: { type: "string" },
                   data_year: { type: "integer" },
                   realtime_available: {
@@ -472,7 +491,8 @@ export function buildSpec({ version = PKG.version } = {}) {
                       "promise that every hourly route answers — read `routes` for that.",
                   },
                   provider: {
-                    type: ["string", "null"],
+                    ...PROVIDER,
+                    nullable: true,
                     description:
                       "The feed behind the hourly routes: ENTSO-E, EIA, NESO, ONS, " +
                       "OpenNEM, EMC, Eskom, IESO. Null where there is none and only " +
@@ -480,6 +500,7 @@ export function buildSpec({ version = PKG.version } = {}) {
                   },
                   routes: {
                     type: "array",
+                    maxItems: 3,
                     items: { type: "string", enum: ["past-hour", "current-hour", "latest"] },
                     description:
                       "Which hourly routes answered as of `generated_at` — the list to " +
@@ -490,7 +511,8 @@ export function buildSpec({ version = PKG.version } = {}) {
                       "none. Zones are not covered here; ask the zone route directly.",
                   },
                   data_lag_seconds: {
-                    type: ["integer", "null"],
+                    type: "integer",
+                    nullable: true,
                     description:
                       "How far behind `generated_at` the newest hour this country has " +
                       "is — measured to the end of that hour, so a live feed sits near " +
@@ -508,7 +530,8 @@ export function buildSpec({ version = PKG.version } = {}) {
                   },
                   providers: {
                     type: "array",
-                    items: { type: "string" },
+                    maxItems: maxChain,
+                    items: PROVIDER,
                     description:
                       "The feed chain, primary first. `data_source.name` on an hourly document says which one actually replied.",
                   },
@@ -523,7 +546,7 @@ export function buildSpec({ version = PKG.version } = {}) {
                       "configured as a fallback at all rather than counted as partial " +
                       "cover.",
                   },
-                  zones: { type: "array", items: { type: "string" } },
+                  zones: { type: "array", maxItems: maxZones, items: ZONE_CODE },
                   ...figureProps(),
                 },
               },
@@ -543,10 +566,11 @@ export function buildSpec({ version = PKG.version } = {}) {
             attribution: ATTRIBUTION_SCHEMA,
             countries: {
               type: "array",
+              maxItems: codes.length,
               items: {
                 type: "object",
                 properties: {
-                  country_code: { type: "string" },
+                  country_code: COUNTRY_CODE,
                   period_start: { type: "string", format: "date-time" },
                   period_end: { type: "string", format: "date-time" },
                   ...figureProps(),
