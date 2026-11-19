@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { hourlyMeans, lastHour } from "../src/data.js";
 import { historyPath, PRUNE_TAIL_DAYS, RETENTION_DAYS, upsertDay, upsertDays, writeHistory } from "../src/history.js";
-import { newestReading } from "../src/live.js";
+import { newestReading, providersFor } from "../src/live.js";
 import { HOURLY_MAX_AGE_SECONDS, writeV2 } from "../src/pipeline.js";
 
 // An in-memory store with the same {get, put, del} seam fsStore provides, so
@@ -771,6 +771,18 @@ test("the OpenAPI document covers every route and resolves every $ref", async ()
   assert.equal(spec.components.parameters.code.schema.enum.length, 213);
   assert.equal(spec.components.parameters.zone.schema.enum.length, 80);
   assert.ok(spec.components.parameters.zone.schema.enum.includes("SICI"));
+
+  // What the schemas state about documents is derived from the data too: hold it to the data.
+  assert.deepEqual(spec.security, []); // public API: no auth, said rather than left out
+  const { country_code, zone } = spec.components.schemas.HourReading.properties;
+  for (const c of spec.components.parameters.code.schema.enum) assert.match(c, new RegExp(country_code.pattern));
+  for (const z of spec.components.parameters.zone.schema.enum) assert.match(z, new RegExp(zone.pattern));
+  const catalogue = spec.components.schemas.CountriesDocument.properties.countries;
+  assert.equal(catalogue.maxItems, 213);
+  for (const c of spec.components.parameters.code.schema.enum) {
+    assert.ok(providersFor(c).length <= catalogue.items.properties.providers.maxItems, c);
+    for (const p of providersFor(c)) assert.ok(catalogue.items.properties.providers.items.enum.includes(p), p);
+  }
 
   // A dangling $ref renders as a blank section rather than an error, so check.
   const refs = [...JSON.stringify(spec).matchAll(/"\$ref":"#\/([^"]+)"/g)].map((m) => m[1]);
