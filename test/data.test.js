@@ -98,7 +98,7 @@ test("sources registry: shape + proposed + none", () => {
   const al = sourceFor("AL");
   assert.equal(al.realtime, true);
   assert.equal(al.status, "proposed");
-  assert.ok(al.ref?.includes("github.com"));
+  assert.equal(new URL(al.ref).hostname, "github.com");
   assert.equal(sourceFor("MX").realtime, false);
   assert.equal(sourceFor("AF").realtime, false);
 });
